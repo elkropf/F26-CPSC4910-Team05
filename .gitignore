@@ -1,0 +1,12 @@
+#enviro variables and secrets
+.env
+.env.*
+!.env.example
+
+#dependencies
+node_modules/
+
+#ide and os
+.vscode/
+.DS_Store
+Thumbs.db
