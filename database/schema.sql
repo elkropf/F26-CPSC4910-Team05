@@ -1,0 +1,13 @@
+USE Team05_DB;
+
+CREATE TABLE users (
+    user_id INT PRIMARY KEY AUTO_INCREMENT,
+)
+
+CREATE TABLE sponsors (
+    sponsor_id INT PRIMARY KEY AUTO_INCREMENT,
+)
+
+CREATE TABLE drivers (
+    driver_id INT PRIMARY KEY AUTO_INCREMENT,
+)
