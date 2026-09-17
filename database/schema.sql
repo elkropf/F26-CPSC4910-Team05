@@ -20,12 +20,18 @@ CREATE TABLE users (
 
 CREATE TABLE sponsors (
     sponsor_id INT PRIMARY KEY AUTO_INCREMENT,
-)
+    user_id INT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
 
 CREATE TABLE drivers (
     driver_id INT PRIMARY KEY AUTO_INCREMENT,
-)
+    user_id INT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
 
 CREATE TABLE admins (
     admin_id INT PRIMARY KEY AUTO_INCREMENT,
-)
+    user_id INT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
