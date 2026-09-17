@@ -35,3 +35,30 @@ CREATE TABLE admins (
     user_id INT NOT NULL,
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
+
+CREATE TABLE applications (
+)
+
+CREATE TABLE products (
+)
+
+CREATE TABLE orders (
+)
+
+CREATE TABLE points (
+)
+
+CREATE TABLE driver_logs (
+)
+
+CREATE TABLE sponsor_logs (
+)
+
+CREATE TABLE admin_logs (
+)
+
+CREATE TABLE audit_logs (
+)
+
+CREATE TABLE notifications (
+)
