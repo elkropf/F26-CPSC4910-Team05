@@ -12,3 +12,24 @@ class UserType(models.TextChoices):
 # Base class that all users will inherit from.
 class User(AbstractUser):
     user_type = models.CharField(max_length=20, choices=UserType.choices)
+
+# Driver Class
+class Driver(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE) 
+
+    def __str__(self):
+        return self.user.username
+
+# Sponsor Class
+class Sponsor(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE) 
+
+    def __str__(self):
+        return self.user.username
+
+# Admin Class
+class Admin(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE) 
+
+    def __str__(self):
+        return self.user.username
