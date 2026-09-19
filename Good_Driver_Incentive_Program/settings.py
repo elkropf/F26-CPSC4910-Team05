@@ -40,6 +40,9 @@ INSTALLED_APPS = [
     'accounts',
 ]
 
+# Using my Personal created user model instead of the default Django User model. This is necessary to allow for the different user types (Driver, Sponsor, Admin).
+AUTH_USER_MODEL = "accounts.User"
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -126,3 +129,5 @@ MAILERS = {
         'BACKEND': 'django.core.mail.backends.console.EmailBackend',
     },
 }
+
+
