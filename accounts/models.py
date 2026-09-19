@@ -17,6 +17,9 @@ class User(AbstractUser):
 class Driver(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE) 
 
+    # Sponsor connection to Driver.
+    sponsor = models.ForeignKey('Sponsor', on_delete=models.SET_NULL, null=True, blank=True, related_name = 'drivers')    
+
     def __str__(self):
         return self.user.username
 
