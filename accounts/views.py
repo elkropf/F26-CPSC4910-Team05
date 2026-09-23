@@ -13,3 +13,25 @@ def login_page(request):
 def register_page(request):
     template = loader.get_template('register.html')
     return HttpResponse(template.render())
+
+def driver_homepage(request):
+    template = loader.get_template('driver_home.html')
+    context = {
+        'username': 'username', #Driver.__str__(self), #Should be replaced with something dynamically updating
+        # 'points': 0,
+    }
+    return HttpResponse(template.render(context, request))
+
+def sponsor_homepage(request):
+    template = loader.get_template('sponsor_home.html')
+    context = {
+        'username': 'username', #Should be replaced with something dynamically updating
+    }
+    return HttpResponse(template.render(context, request))
+
+def admin_homepage(request):
+    template = loader.get_template('admin_home.html')
+    context = {
+        'username': 'username', #Should be replaced with something dynamically updating
+    }
+    return HttpResponse(template.render(context, request))
