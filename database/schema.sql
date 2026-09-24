@@ -45,7 +45,7 @@ CREATE TABLE applications (
     submission_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     review_date TIMESTAMP NULL,
     FOREIGN KEY (driver_id) REFERENCES drivers(driver_id) ON DELETE CASCADE,
-    FOREIGN KEY (sponsor_id) REFERENCES sponsors(sponsor_id) ON DELETE CASCADE
+    FOREIGN KEY (sponsor_id) REFERENCES sponsors(sponsor_id) ON DELETE CASCADE,
     unique (driver_id, sponsor_id)
 );
 
@@ -59,7 +59,7 @@ CREATE TABLE products (
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (sponsor_id) REFERENCES sponsors(sponsor_id) ON DELETE CASCADE
+    FOREIGN KEY (sponsor_id) REFERENCES sponsors(sponsor_id) ON DELETE CASCADE,
     CHECK (points_value >= 0),
     CHECK (instock_quantity >= 0)
 );
