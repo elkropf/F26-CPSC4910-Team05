@@ -5,10 +5,11 @@
     <h2>Register</h2>
 
     <form>
+        {% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
         <label>Username</label>
-        <input type="text"/>
+        <input type="text" name="user"/>
         <label>Password</label>
-        <input type="password"/>
+        <input type="password" name="pass"/>
 
         <button type="submit">Register</button>
 
