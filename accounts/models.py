@@ -133,3 +133,18 @@ class OrderItem(models.Model):
 
     def __str__(self):
         return f"{self.quantity} x {self.product}"
+
+#points
+class Points(models.Model):
+    driver = models.ForeignKey(Driver, on_delete=models.CASCADE, related_name='points')
+    sponsor = models.ForeignKey(Sponsor, on_delete=models.CASCADE, related_name='points')
+    points_balance = models.PositiveIntegerField(default=0)
+    last_updated = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['driver', 'sponsor'], name='unique_driver_sponsor_points')
+        ]
+
+    def __str__(self):
+        return f"{self.driver} - {self.sponsor}: {self.points_balance} points"
