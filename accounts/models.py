@@ -94,3 +94,42 @@ class Product(models.Model):
 
     def __str__(self):
         return self.product_name
+
+    
+#order status options
+class OrderStatus(models.TextChoices):
+    PENDING = 'pending', 'Pending'
+    APPROVED = 'approved', 'Approved'
+    PROCESSING = 'processing', 'Processing'
+    COMPLETED = 'completed', 'Completed'
+    CANCELLED = 'cancelled', 'Cancelled'
+
+
+#orders placed by drivers
+class Order(models.Model):
+    driver = models.ForeignKey(Driver, on_delete=models.PROTECT, related_name='orders')
+    sponsor = models.ForeignKey(Sponsor, on_delete=models.PROTECT, related_name='orders')
+    total_points = models.PositiveIntegerField()
+    order_status = models.CharField(max_length=20, choices=OrderStatus.choices, default=OrderStatus.PENDING)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Order {self.id} - {self.driver}"
+
+
+#products included in each order
+class OrderItem(models.Model):
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
+    product = models.ForeignKey(Product, on_delete=models.PROTECT, related_name='order_items')
+    quantity = models.PositiveIntegerField(default=1)
+    points_cost = models.PositiveIntegerField()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['order', 'product'], name='unique_product_per_order'),
+            models.CheckConstraint(condition=models.Q(quantity__gt=0), name='quantity_greater_than_zero')
+        ]
+
+    def __str__(self):
+        return f"{self.quantity} x {self.product}"
