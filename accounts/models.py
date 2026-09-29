@@ -148,3 +148,51 @@ class Points(models.Model):
 
     def __str__(self):
         return f"{self.driver} - {self.sponsor}: {self.points_balance} points"
+    
+#driver log
+class driverLog(models.Model):
+    driver = models.ForeignKey(Driver, on_delete=models.CASCADE, related_name='driver_logs')
+    action = models.CharField(max_length=255)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.driver} - {self.action} at {self.timestamp}"
+
+#sponsor log
+class sponsorLog(models.Model):
+    sponsor = models.ForeignKey(Sponsor, on_delete=models.CASCADE, related_name='sponsor_logs')
+    action = models.CharField(max_length=255)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.sponsor} - {self.action} at {self.timestamp}"
+
+#admin log
+class adminLog(models.Model):
+    admin = models.ForeignKey(Admin, on_delete=models.CASCADE, related_name='admin_logs')
+    action = models.CharField(max_length=255)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.admin} - {self.action} at {self.timestamp}"
+    
+#point log
+class pointLog(models.Model):
+    driver = models.ForeignKey(Driver, on_delete=models.CASCADE, related_name='point_logs')
+    sponsor = models.ForeignKey(Sponsor, on_delete=models.CASCADE, related_name='point_logs')
+    points_changed = models.IntegerField()
+    action = models.CharField(max_length=255)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.driver} - {self.sponsor}: {self.points_changed} points changed for {self.action} at {self.timestamp}"
+
+#notifications
+class notification(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Notification for {self.user.username} - Read: {self.is_read}"
