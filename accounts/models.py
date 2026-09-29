@@ -187,6 +187,15 @@ class pointLog(models.Model):
     def __str__(self):
         return f"{self.driver} - {self.sponsor}: {self.points_changed} points changed for {self.action} at {self.timestamp}"
 
+#audit logs
+class auditLog(models.Model):
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='audit_logs')
+    action = models.CharField(max_length=255)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user} - {self.action} at {self.timestamp}"
+    
 #notifications
 class notification(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
