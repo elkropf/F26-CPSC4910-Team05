@@ -4,12 +4,13 @@
 
     <h2>Register</h2>
 
-    <form>
+    <form action="{% url 'accounts:register' %}" method="post">
+    {% csrf_token %}
         {% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
         <label>Username</label>
-        <input type="text" name="user"/>
+        <input type="text" name="user_in"/>
         <label>Password</label>
-        <input type="password" name="pass"/>
+        <input type="password" name="pass_in"/>
 
         <button type="submit">Register</button>
 
