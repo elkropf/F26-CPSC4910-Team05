@@ -60,8 +60,8 @@ def register(request):
         user_info = User.objects.get(username=request.POST["user_in"])
     except (KeyError, User.DoesNotExist):
         User.objects.create(
-            username = request.POST["user_in"]
-            hashed_pass = hash(request.POST["pass_in"])
+            username = request.POST["user_in"],
+            hashed_pass = hash(request.POST["pass_in"]),
             user_type = 'driver'
         )
         return HttpResponseRedirect(reverse("accounts:driver_homepage"), headers={username: request.POST["user_in"]})
