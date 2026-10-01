@@ -15,3 +15,7 @@ class AboutProductInfo(models.Model):
 class AboutSprintInfo(models.Model):
     sprint_number = models.CharField(max_length=2)
     release_date = models.DateField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Sprint {self.sprint_number}"
