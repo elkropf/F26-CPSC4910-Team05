@@ -1,0 +1,28 @@
+.about-page {
+    max-width: 700px;
+    margin: 60px auto;
+    padding: 20px;
+    font-family: Arial, sans-serif;
+}
+
+.about-page h1 {
+    margin-bottom: 10px;
+}
+
+.about-page h2 {
+    margin-bottom: 15px;
+}
+
+.description {
+    margin-bottom: 25px;
+    line-height: 1.5;
+}
+
+.about-info {
+    border-top: 1px solid #ccc;
+    padding-top: 15px;
+}
+
+.about-info p {
+    margin: 10px 0;
+}
