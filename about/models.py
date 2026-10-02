@@ -10,7 +10,7 @@ class AboutProductInfo(models.Model):
     product_description = models.TextField()
 
     def __str__(self):
-        return self.title
+        return self.product_name
 
 class AboutSprintInfo(models.Model):
     sprint_number = models.CharField(max_length=2)
