@@ -2,6 +2,7 @@ from django.shortcuts import get_object_or_404, render
 from django.http import HttpResponse
 from django.template import loader
 from django.urls import reverse
+from django.views.decorators.csrf import csrf_protect
 from .models import User, Driver, Sponsor, Admin
 from django.contrib.auth.decorators import login_required
 
@@ -55,8 +56,18 @@ def register_page(request):
     template = loader.get_template('register.html')
     return HttpResponse(template.render())
 
+@csrf_protect
 def register(request):
     try:
+        if request.POST["user_in"] <= 0 or request.POST["pass_in"] <= 0:
+            return render (
+                request,
+                "accounts/templates/register.html",
+                {
+                    "error_message": "Username and password are required."
+                }
+            )
+
         user_info = User.objects.get(username=request.POST["user_in"])
     except (KeyError, User.DoesNotExist):
         User.objects.create(
@@ -64,7 +75,7 @@ def register(request):
             hashed_pass = hash(request.POST["pass_in"]),
             user_type = 'driver'
         )
-        return HttpResponseRedirect(reverse("accounts:driver_homepage"), headers={username: request.POST["user_in"]})
+        return HttpResponseRedirect(reverse("accounts:driver_homepage", query={"username": request.POST["user_in"]}))
     else:
         return render (
             request,
