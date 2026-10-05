@@ -3,6 +3,8 @@ from . import views
 
 app_name = "accounts"
 urlpatterns = [
+    path('apply/', views.app_page, name='app_page'),
+    path('appstatus/<int:app_id>/', views.app_status, name='app_status_page'),
     path('login/', views.login_page, name='login_page'),
     path('loggingin/', views.login, name='login'),
     path('register/', views.register_page, name='register_page'),

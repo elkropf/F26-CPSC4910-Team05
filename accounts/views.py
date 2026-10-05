@@ -8,6 +8,18 @@ from django.contrib.auth.decorators import login_required
 
 # Create your views here.
 
+def app_page(request):
+    template = loader.get_template('application.html')
+    return HttpResponse(template.render())
+
+def app_status(request, app_id):
+    template = loader.get_template('app_status.html')
+    context = {
+        'show_search': True,
+        'app_number': app_id,
+    }
+    return HttpResponse(template.render(context, request))
+
 def login_page(request):
     template = loader.get_template('login.html')
     return HttpResponse(template.render())

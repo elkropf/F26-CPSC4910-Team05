@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<body>
+    {% if show_search %}
+        <form>
+            <label for="id">Enter the ID of your application:</label>
+            <input type="number" name="id" id="id"/>
+            <button type="submit">Submit</button>
+        </form>
+    {% else %}
+        <h2>Status of Application {{ app_number }}:</h2>
+        <p>Explode</p>
+    {% endif %}
+</body>
+</html>

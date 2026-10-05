@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<body>
+    <h2>Application</h2>
+
+    <form>
+        {% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
+        <label>Email</label>
+        <input type="email" name="email"/>
+        <label for="sponsor">Select a sponsor company:</label>
+        <select name="sponsor" id="sponsor">
+            <comment>TODO: Replace with iterating through database sponsor organizations</comment>
+            <option value="a">Company A</option>
+            <option value="b">Company B</option>
+            <option value="c">Company C</option>
+        </select>
+        <button type="submit">Apply</button>
+    </form>
+
+    <p>Already applied?<br>
+        View your application here.
+    </p>
+    <p>Looking to login or register?<br>
+        <a href="/login"><button type="button">Log In</button></a> or <a href="/register"><button type="button">Register</button></a>
+    </p>
+</body>
+</html>
