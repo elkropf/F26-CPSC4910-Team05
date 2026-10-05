@@ -1,9 +1,9 @@
 from django.shortcuts import get_object_or_404, render
-from django.http import HttpResponse
+from django.http import HttpResponse, Http404
 from django.template import loader
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_protect
-from .models import User, Driver, Sponsor, Admin
+from .models import *
 from django.contrib.auth.decorators import login_required
 
 # Create your views here.
@@ -12,13 +12,42 @@ def app_page(request):
     template = loader.get_template('application.html')
     return HttpResponse(template.render())
 
-def app_status(request, app_id):
+def apply(request):
+    raise Http404("Not implemented yet")
+    #Application.objects.create(
+    #    'application_message': request.POST["email"],
+    #    'application_status': 'pending',
+    #)
+
+def app_status(request):
     template = loader.get_template('app_status.html')
     context = {
         'show_search': True,
-        'app_number': app_id,
     }
     return HttpResponse(template.render(context, request))
+
+def check_status(request):
+    try:
+        application = Application.objects.get(id=request.GET["app_id"])
+        return render (
+            request,
+            "app_status.html",
+            {
+                "show_search": True,
+                "error_message": "",
+                "app_number": application.id,
+                "app_stat": application.application_status,
+            },
+        )
+    except (KeyError, Application.DoesNotExist):
+        return render (
+            request,
+            "app_status.html",
+            {
+                "show_search": True,
+                "error_message": "Could not find your application ID in our database.",
+            },
+        )
 
 def login_page(request):
     template = loader.get_template('login.html')

@@ -3,7 +3,8 @@
 <body>
     <h2>Application</h2>
 
-    <form>
+    <form action="{% url 'accounts:apply' %}" method="post">
+    {% csrf_token %}
         {% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
         <label>Email</label>
         <input type="email" name="email"/>

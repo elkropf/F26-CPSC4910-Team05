@@ -1,15 +1,16 @@
 <!DOCTYPE html>
 <html>
 <body>
+    {% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
     {% if show_search %}
-        <form>
+        <form action="{% url 'accounts:app_status' %}" method="get">
             <label for="id">Enter the ID of your application:</label>
-            <input type="number" name="id" id="id"/>
+            <input type="number" name="app_id" id="app_id"/>
             <button type="submit">Submit</button>
         </form>
     {% else %}
         <h2>Status of Application {{ app_number }}:</h2>
-        <p>Explode</p>
+        <p>Explode: {{ app_stat }}</p>
     {% endif %}
 </body>
 </html>
