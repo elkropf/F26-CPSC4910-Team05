@@ -59,7 +59,7 @@ def login(request):
         if user_info.hashed_pass != hash(request.GET["pass_in"]):
             return render (
                 request,
-                "accounts/templates/login.html",
+                "login.html",
                 {
                     "error_message": "Username and password do not match."
                 }
@@ -87,7 +87,7 @@ def login(request):
     except (KeyError, User.DoesNotExist):
         return render (
             request,
-            "accounts/templates/login.html",
+            "login.html",
             {
                 "error_message": "Username was not found. Are you trying to register?"
             }
@@ -103,7 +103,7 @@ def register(request):
         if request.POST["user_in"] <= 0 or request.POST["pass_in"] <= 0:
             return render (
                 request,
-                "accounts/templates/register.html",
+                "register.html",
                 {
                     "error_message": "Username and password are required."
                 }
@@ -120,7 +120,7 @@ def register(request):
     else:
         return render (
             request,
-            "accounts/templates/register.html",
+            "register.html",
             {
                 "error_message": "Username already exists. Are you trying to log in?"
             }
