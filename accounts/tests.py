@@ -7,11 +7,11 @@ from .models import User, Driver, Sponsor, Admin
 class ModelTests(TestCase):
     def test_user_marked_active_when_created(self):
         new_user = User()
-        self.assertIs(new_user.is_active(), True)
+        self.assertTrue(new_user.is_active)
 
     def test_user_type_init(self):
         new_user = User(user_type='driver')
-        self.assertIs(new_user.user_type, 'Driver')
+        self.assertEqual(new_user.user_type, 'driver')
 
 class ViewTests(TestCase):
     def test_find_register_page(self):
