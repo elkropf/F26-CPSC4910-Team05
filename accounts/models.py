@@ -19,7 +19,7 @@ class Driver(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE) 
 
     # Sponsor connection to Driver.
-    sponsor = models.ForeignKey('Sponsor', on_delete=models.SET_NULL, null=True, blank=True, related_name = 'drivers')    
+    organization = models.ForeignKey('Organization', on_delete=models.SET_NULL, null=True, blank=True, related_name = 'drivers')    
 
     def __str__(self):
         return self.user.username
@@ -47,6 +47,9 @@ class Sponsor(models.Model):
         blank=True
     )
 
+    def __str__(self):
+        return self.user.username
+
 # Admin Class
 class Admin(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE) 
@@ -60,17 +63,19 @@ class ApplicationStatus(models.TextChoices):
     APPROVED = 'approved', 'Approved'
     REJECTED = 'rejected', 'Rejected'
 
-#submitted driver applications
+# submitted driver applications
 class Application(models.Model):
     driver = models.ForeignKey(
         Driver,
         on_delete=models.CASCADE,
         related_name="applications"
     )
-    sponsor = models.ForeignKey(
-        Sponsor,
+    organization = models.ForeignKey(
+        Organization,
         on_delete=models.CASCADE,
-        related_name="applications"
+        related_name="applications",
+        null=True,
+        blank=True
     )
     application_status = models.CharField(
         max_length=20,
@@ -84,22 +89,23 @@ class Application(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=["driver", "sponsor"],
-                name="unique_driver_sponsor_application"
+                fields=["driver", "organization"],
+                name="unique_driver_organization_application"
             )
         ]
 
     def __str__(self):
-        return f"{self.driver} - {self.sponsor}"
-
-
+        return f"{self.driver} - {self.organization}"
+    
 #sponsor chosen products
 class Product(models.Model):
-    sponsor = models.ForeignKey(
-        Sponsor,
-        on_delete=models.CASCADE,
-        related_name="products"
-    )
+    organization = models.ForeignKey(
+    Organization,
+    on_delete=models.CASCADE,
+    related_name="products",
+    null=True,
+    blank=True
+)
     product_name = models.CharField(max_length=255)
     product_description = models.TextField(blank=True)
     points_value = models.PositiveIntegerField()
@@ -124,7 +130,13 @@ class OrderStatus(models.TextChoices):
 #orders placed by drivers
 class Order(models.Model):
     driver = models.ForeignKey(Driver, on_delete=models.PROTECT, related_name='orders')
-    sponsor = models.ForeignKey(Sponsor, on_delete=models.PROTECT, related_name='orders')
+    organization = models.ForeignKey(
+    Organization,
+    on_delete=models.PROTECT,
+    related_name="orders",
+    null=True,
+    blank=True
+)
     total_points = models.PositiveIntegerField()
     order_status = models.CharField(max_length=20, choices=OrderStatus.choices, default=OrderStatus.PENDING)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -152,18 +164,34 @@ class OrderItem(models.Model):
 
 #points
 class Points(models.Model):
-    driver = models.ForeignKey(Driver, on_delete=models.CASCADE, related_name='points')
-    sponsor = models.ForeignKey(Sponsor, on_delete=models.CASCADE, related_name='points')
+    driver = models.ForeignKey(
+        Driver,
+        on_delete=models.CASCADE,
+        related_name="points"
+    )
+    organization = models.ForeignKey(
+    Organization,
+    on_delete=models.CASCADE,
+    related_name="points",
+    null=True,
+    blank=True
+    )
     points_balance = models.PositiveIntegerField(default=0)
     last_updated = models.DateTimeField(auto_now=True)
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['driver', 'sponsor'], name='unique_driver_sponsor_points')
+            models.UniqueConstraint(
+                fields=["driver", "organization"],
+                name="unique_driver_organization_points"
+            )
         ]
 
     def __str__(self):
-        return f"{self.driver} - {self.sponsor}: {self.points_balance} points"
+        return (
+            f"{self.driver} - {self.organization}: "
+            f"{self.points_balance} points"
+        )
     
 #driver log
 class driverLog(models.Model):
@@ -174,9 +202,13 @@ class driverLog(models.Model):
     def __str__(self):
         return f"{self.driver} - {self.action} at {self.timestamp}"
 
-#sponsor log
+#organization log
 class sponsorLog(models.Model):
-    sponsor = models.ForeignKey(Sponsor, on_delete=models.CASCADE, related_name='sponsor_logs')
+    sponsor = models.ForeignKey(
+        Sponsor,
+        on_delete=models.CASCADE,
+        related_name="sponsor_logs"
+    )
     action = models.CharField(max_length=255)
     timestamp = models.DateTimeField(auto_now_add=True)
 
@@ -195,13 +227,19 @@ class adminLog(models.Model):
 #point log
 class pointLog(models.Model):
     driver = models.ForeignKey(Driver, on_delete=models.CASCADE, related_name='point_logs')
-    sponsor = models.ForeignKey(Sponsor, on_delete=models.CASCADE, related_name='point_logs')
+    organization = models.ForeignKey(
+    Organization,
+    on_delete=models.CASCADE,
+    related_name="point_logs",
+    null=True,
+    blank=True
+    )
     points_changed = models.IntegerField()
     action = models.CharField(max_length=255)
     timestamp = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.driver} - {self.sponsor}: {self.points_changed} points changed for {self.action} at {self.timestamp}"
+        return f"{self.driver} - {self.organization}: {self.points_changed} points changed for {self.action} at {self.timestamp}"
 
 #audit logs
 class auditLog(models.Model):
