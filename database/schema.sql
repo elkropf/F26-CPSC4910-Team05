@@ -18,16 +18,30 @@ CREATE TABLE users (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
+CREATE TABLE organizations (
+    organization_id INT PRIMARY KEY AUTO_INCREMENT,
+    organization_name VARCHAR(255) NOT NULL,
+    organization_description TEXT,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP
+);
+
 CREATE TABLE sponsors (
     sponsor_id INT PRIMARY KEY AUTO_INCREMENT,
     user_id INT NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+    organization_id INT,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (organization_id) REFERENCES organizations(organization_id) ON DELETE SET NULL
 );
 
 CREATE TABLE drivers (
     driver_id INT PRIMARY KEY AUTO_INCREMENT,
     user_id INT NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+    organization_id INT,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (organization_id) REFERENCES organizations(organization_id) ON DELETE SET NULL
 );
 
 CREATE TABLE admins (
@@ -39,19 +53,19 @@ CREATE TABLE admins (
 CREATE TABLE applications (
     application_id INT PRIMARY KEY AUTO_INCREMENT,
     driver_id INT NOT NULL,
-    sponsor_id INT NOT NULL,
+    organization_id INT NOT NULL,
     application_status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
     application_message TEXT,
     submission_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     review_date TIMESTAMP NULL,
     FOREIGN KEY (driver_id) REFERENCES drivers(driver_id) ON DELETE CASCADE,
-    FOREIGN KEY (sponsor_id) REFERENCES sponsors(sponsor_id) ON DELETE CASCADE,
-    unique (driver_id, sponsor_id)
+    FOREIGN KEY (organization_id) REFERENCES organizations(organization_id) ON DELETE CASCADE,
+    unique (driver_id, organization_id)
 );
 
 CREATE TABLE products (
     product_id INT PRIMARY KEY AUTO_INCREMENT,
-    sponsor_id INT NOT NULL,
+    organization_id INT NOT NULL,
     product_name VARCHAR(255) NOT NULL,
     product_description TEXT,
     points_value INT NOT NULL,
@@ -59,7 +73,7 @@ CREATE TABLE products (
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (sponsor_id) REFERENCES sponsors(sponsor_id) ON DELETE CASCADE,
+    FOREIGN KEY (organization_id) REFERENCES organizations(organization_id) ON DELETE CASCADE,
     CHECK (points_value >= 0),
     CHECK (instock_quantity >= 0)
 );
@@ -67,7 +81,7 @@ CREATE TABLE products (
 CREATE TABLE orders (
     order_id INT PRIMARY KEY AUTO_INCREMENT,
     driver_id INT NOT NULL,
-    sponsor_id INT NOT NULL,
+    organization_id INT NOT NULL,
     total_points INT NOT NULL,
     order_status ENUM(
         'pending',
@@ -84,8 +98,8 @@ CREATE TABLE orders (
         REFERENCES drivers(driver_id)
         ON DELETE RESTRICT,
 
-    FOREIGN KEY (sponsor_id)
-        REFERENCES sponsors(sponsor_id)
+    FOREIGN KEY (organization_id)
+        REFERENCES organizations(organization_id)
         ON DELETE RESTRICT,
 
     CHECK (total_points >= 0)
@@ -112,10 +126,31 @@ CREATE TABLE order_items (
     UNIQUE (order_id, product_id)
 );
 
+CREATE TABLE points (
+    points_id INT PRIMARY KEY AUTO_INCREMENT,
+    driver_id INT NOT NULL,
+    organization_id INT NULL,
+    points_balance INT NOT NULL DEFAULT 0,
+    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (driver_id)
+        REFERENCES drivers(driver_id)
+        ON DELETE CASCADE,
+
+    FOREIGN KEY (organization_id)
+        REFERENCES organizations(organization_id)
+        ON DELETE CASCADE,
+
+    CHECK (points_balance >= 0),
+
+    UNIQUE (driver_id, organization_id)
+);
+
 CREATE TABLE points_logs (
     points_log_id INT PRIMARY KEY AUTO_INCREMENT,
     driver_id INT NOT NULL,
-    sponsor_id INT NOT NULL,
+    organization_id INT NOT NULL,
     order_id INT NULL,
     created_by_user_id INT NULL,
     transaction_type ENUM(
@@ -132,8 +167,8 @@ CREATE TABLE points_logs (
         REFERENCES drivers(driver_id)
         ON DELETE RESTRICT,
 
-    FOREIGN KEY (sponsor_id)
-        REFERENCES sponsors(sponsor_id)
+    FOREIGN KEY (organization_id)
+        REFERENCES organizations(organization_id)
         ON DELETE RESTRICT,
 
     FOREIGN KEY (order_id)
@@ -151,7 +186,7 @@ CREATE TABLE points_logs (
 CREATE TABLE driver_logs (
     driver_log_id INT PRIMARY KEY AUTO_INCREMENT,
     driver_id INT NOT NULL,
-    sponsor_id INT NULL,
+    organization_id INT NULL,
     action_type VARCHAR(100) NOT NULL,
     action_description VARCHAR(255),
     ip_address VARCHAR(45),
@@ -161,8 +196,8 @@ CREATE TABLE driver_logs (
         REFERENCES drivers(driver_id)
         ON DELETE RESTRICT,
 
-    FOREIGN KEY (sponsor_id)
-        REFERENCES sponsors(sponsor_id)
+    FOREIGN KEY (organization_id)
+        REFERENCES organizations(organization_id)
         ON DELETE SET NULL
 );
 
