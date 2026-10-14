@@ -23,13 +23,29 @@ class Driver(models.Model):
 
     def __str__(self):
         return self.user.username
-
-# Sponsor Class
-class Sponsor(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE) 
+    
+# sponsor organization
+class Organization(models.Model):
+    organization_name = models.CharField(max_length=255)
+    organization_description = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return self.user.username
+        return self.organization_name
+    
+# Sponsor Class
+class Sponsor(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name="sponsors",
+        null=True,
+        blank=True
+    )
 
 # Admin Class
 class Admin(models.Model):
