@@ -10,7 +10,10 @@ from django.contrib.auth.decorators import login_required
 
 def app_page(request):
     template = loader.get_template('application.html')
-    return HttpResponse(template.render())
+    context = {
+        'organization': Organization.objects.order_by("-id"),
+    }
+    return HttpResponse(template.render(context, request))
 
 def apply(request):
     raise Http404("Not implemented yet")

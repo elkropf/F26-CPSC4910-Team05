@@ -10,10 +10,12 @@
         <input type="email" name="email"/>
         <label for="sponsor">Select a sponsor company:</label>
         <select name="sponsor" id="sponsor">
-            <comment>TODO: Replace with iterating through database sponsor organizations</comment>
-            <option value="a">Company A</option>
+            {% for x in organization %}
+                <option value="{{ x.organization_name }}">{{ x.organization_name }}</option>
+            {% endfor %}
+            <!-- <option value="a">Company A</option>
             <option value="b">Company B</option>
-            <option value="c">Company C</option>
+            <option value="c">Company C</option> -->
         </select>
         <button type="submit">Apply</button>
     </form>
