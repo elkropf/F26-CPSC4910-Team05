@@ -3,15 +3,24 @@ import json
 from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import render
 from django.template import loader
 from django.urls import reverse
+from django.utils import timezone
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST
 
-from .models import Application, Driver, Organization, User, UserType
+from .models import (
+    Application,
+    ApplicationStatus,
+    Driver,
+    Organization,
+    Sponsor,
+    User,
+    UserType,
+)
 
 
 def _request_data(request):
@@ -124,6 +133,191 @@ def api_current_user(request):
             "user": _user_data(request.user),
         }
     )
+
+
+def _application_data(application):
+    return {
+        "id": application.id,
+        "driver": {
+            "id": application.driver.id,
+            "username": application.driver.user.username,
+        },
+        "organization": {
+            "id": application.organization.id,
+            "name": application.organization.organization_name,
+        } if application.organization else None,
+        "status": application.application_status,
+        "message": application.application_message,
+        "submitted_at": application.submission_date.isoformat(),
+        "reviewed_at": (
+            application.review_date.isoformat()
+            if application.review_date else None
+        ),
+    }
+
+
+# JSON application endpoints for the React frontend.
+
+@require_GET
+def api_organizations(request):
+    organizations = Organization.objects.filter(is_active=True).order_by(
+        "organization_name"
+    )
+    return JsonResponse(
+        {
+            "organizations": [
+                {
+                    "id": organization.id,
+                    "name": organization.organization_name,
+                    "description": organization.organization_description,
+                }
+                for organization in organizations
+            ]
+        }
+    )
+
+
+@require_GET
+def api_applications(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Authentication required."}, status=401)
+
+    applications = Application.objects.select_related(
+        "driver__user",
+        "organization",
+    )
+
+    if request.user.user_type == UserType.DRIVER:
+        try:
+            driver = request.user.driver
+        except Driver.DoesNotExist:
+            return JsonResponse({"error": "Driver profile not found."}, status=404)
+        applications = applications.filter(driver=driver)
+
+    elif request.user.user_type == UserType.SPONSOR:
+        try:
+            sponsor = request.user.sponsor
+        except Sponsor.DoesNotExist:
+            return JsonResponse({"error": "Sponsor profile not found."}, status=404)
+
+        if sponsor.organization_id is None:
+            return JsonResponse({"applications": []})
+
+        applications = applications.filter(organization=sponsor.organization)
+
+    elif request.user.user_type != UserType.ADMIN:
+        return JsonResponse({"error": "Permission denied."}, status=403)
+
+    applications = applications.order_by("-submission_date")
+    return JsonResponse(
+        {"applications": [_application_data(item) for item in applications]}
+    )
+
+
+@require_POST
+def api_submit_application(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Authentication required."}, status=401)
+
+    if request.user.user_type != UserType.DRIVER:
+        return JsonResponse(
+            {"error": "Only drivers can submit applications."},
+            status=403,
+        )
+
+    try:
+        driver = request.user.driver
+    except Driver.DoesNotExist:
+        return JsonResponse({"error": "Driver profile not found."}, status=404)
+
+    data = _request_data(request)
+    if data is None:
+        return JsonResponse({"error": "Invalid JSON."}, status=400)
+
+    try:
+        organization_id = int(data.get("organization_id"))
+    except (TypeError, ValueError):
+        return JsonResponse({"error": "A valid organization_id is required."}, status=400)
+
+    try:
+        organization = Organization.objects.get(
+            id=organization_id,
+            is_active=True,
+        )
+    except Organization.DoesNotExist:
+        return JsonResponse({"error": "Organization not found."}, status=404)
+
+    try:
+        application = Application.objects.create(
+            driver=driver,
+            organization=organization,
+            application_message=str(data.get("message", "")).strip(),
+        )
+    except IntegrityError:
+        return JsonResponse(
+            {"error": "You already applied to this organization."},
+            status=409,
+        )
+
+    return JsonResponse(
+        {"application": _application_data(application)},
+        status=201,
+    )
+
+
+@require_POST
+def api_review_application(request, application_id):
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Authentication required."}, status=401)
+
+    data = _request_data(request)
+    if data is None:
+        return JsonResponse({"error": "Invalid JSON."}, status=400)
+
+    new_status = str(data.get("status", "")).lower()
+    allowed_statuses = {
+        ApplicationStatus.APPROVED,
+        ApplicationStatus.REJECTED,
+    }
+    if new_status not in allowed_statuses:
+        return JsonResponse(
+            {"error": "Status must be approved or rejected."},
+            status=400,
+        )
+
+    try:
+        application = Application.objects.select_related(
+            "driver__user",
+            "organization",
+        ).get(id=application_id)
+    except Application.DoesNotExist:
+        return JsonResponse({"error": "Application not found."}, status=404)
+
+    if request.user.user_type == UserType.SPONSOR:
+        try:
+            sponsor = request.user.sponsor
+        except Sponsor.DoesNotExist:
+            return JsonResponse({"error": "Sponsor profile not found."}, status=404)
+
+        if (
+            sponsor.organization_id is None
+            or sponsor.organization_id != application.organization_id
+        ):
+            return JsonResponse({"error": "Permission denied."}, status=403)
+
+    elif request.user.user_type != UserType.ADMIN:
+        return JsonResponse({"error": "Permission denied."}, status=403)
+
+    with transaction.atomic():
+        application.application_status = new_status
+        application.review_date = timezone.now()
+        application.save(update_fields=["application_status", "review_date"])
+
+        if new_status == ApplicationStatus.APPROVED:
+            application.driver.organization = application.organization
+            application.driver.save(update_fields=["organization"])
+
+    return JsonResponse({"application": _application_data(application)})
 
 
 # Existing server-rendered pages.
