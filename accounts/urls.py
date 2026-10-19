@@ -12,13 +12,7 @@ urlpatterns = [
     path("api/auth/logout/", views.api_logout, name="api_logout"),
     path("api/auth/me/", views.api_current_user, name="api_current_user"),
 
-    # JSON organization and application API for React
-    path("api/organizations/", views.api_organizations, name="api_organizations"),
-    path("api/applications/", views.api_applications, name="api_applications"),
-    path("api/applications/submit/", views.api_submit_application, name="api_submit_application"),
-    path("api/applications/<int:application_id>/review/", views.api_review_application, name="api_review_application"),
-
-    # Existing template application pages
+    # Application
     path("apply/", views.app_page, name="app_page"),
     path("applying/", views.apply, name="apply"),
     path("appstatus/", views.app_status, name="app_status_page"),
