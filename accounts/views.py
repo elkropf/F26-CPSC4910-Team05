@@ -11,7 +11,8 @@ from django.urls import reverse
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST
 
-from .models import Application, Driver, Organization, User, UserType
+from .models import (Application, ApplicationStatus, Driver, Organization, Sponsor, User, UserType,)
+from django.utils import timezone
 
 
 def _request_data(request):
@@ -247,6 +248,142 @@ def api_my_applications(request):
 
     return JsonResponse({
         "applications": application_list
+    })
+
+@require_GET
+def api_sponsor_applications(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({
+            "error": "You must be logged in."
+        }, status=401)
+
+    if request.user.user_type != UserType.SPONSOR:
+        return JsonResponse({
+            "error": "Only sponsors can view pending applications."
+        }, status=403)
+
+    try:
+        sponsor = request.user.sponsor
+    except Sponsor.DoesNotExist:
+        return JsonResponse({
+            "error": "Sponsor profile not found."
+        }, status=404)
+
+    if sponsor.organization is None:
+        return JsonResponse({
+            "error": "Sponsor is not connected to an organization."
+        }, status=400)
+
+    applications = Application.objects.filter(
+        organization=sponsor.organization,
+        application_status=ApplicationStatus.PENDING
+    ).select_related("driver__user").order_by("submission_date")
+
+    application_list = []
+
+    for application in applications:
+        application_list.append({
+            "id": application.id,
+            "driver_id": application.driver.id,
+            "username": application.driver.user.username,
+            "message": application.application_message,
+            "status": application.application_status,
+            "submitted_at": application.submission_date,
+        })
+
+    return JsonResponse({
+        "applications": application_list
+    })
+
+@require_POST
+def api_review_application(request, application_id):
+    if not request.user.is_authenticated:
+        return JsonResponse({
+            "error": "You must be logged in."
+        }, status=401)
+
+    if request.user.user_type != UserType.SPONSOR:
+        return JsonResponse({
+            "error": "Only sponsors can review applications."
+        }, status=403)
+
+    try:
+        sponsor = request.user.sponsor
+    except Sponsor.DoesNotExist:
+        return JsonResponse({
+            "error": "Sponsor profile not found."
+        }, status=404)
+
+    if sponsor.organization is None:
+        return JsonResponse({
+            "error": "Sponsor is not connected to an organization."
+        }, status=400)
+
+    data = _request_data(request)
+
+    if data is None:
+        return JsonResponse({
+            "error": "Invalid JSON."
+        }, status=400)
+
+    new_status = str(data.get("status", "")).lower()
+    rejection_reason = str(data.get("rejection_reason", "")).strip()
+
+    if new_status not in [
+        ApplicationStatus.APPROVED,
+        ApplicationStatus.REJECTED
+    ]:
+        return JsonResponse({
+            "error": "Status must be approved or rejected."
+        }, status=400)
+
+    if (
+        new_status == ApplicationStatus.REJECTED
+        and not rejection_reason
+    ):
+        return JsonResponse({
+            "error": "A rejection reason is required."
+        }, status=400)
+
+    try:
+        application = Application.objects.select_related(
+            "driver",
+            "organization"
+        ).get(
+            id=application_id,
+            organization=sponsor.organization
+        )
+    except Application.DoesNotExist:
+        return JsonResponse({
+            "error": "Application not found."
+        }, status=404)
+
+    if application.application_status != ApplicationStatus.PENDING:
+        return JsonResponse({
+            "error": "This application has already been reviewed."
+        }, status=409)
+
+    with transaction.atomic():
+        application.application_status = new_status
+        application.review_date = timezone.now()
+        application.rejection_reason = (
+            rejection_reason
+            if new_status == ApplicationStatus.REJECTED
+            else ""
+        )
+        application.save()
+
+        if new_status == ApplicationStatus.APPROVED:
+            application.driver.organization = application.organization
+            application.driver.save()
+
+    return JsonResponse({
+        "application": {
+            "id": application.id,
+            "status": application.application_status,
+            "rejection_reason": application.rejection_reason,
+            "reviewed_at": application.review_date,
+        }
     })
 
 # Existing server-rendered pages.

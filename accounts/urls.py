@@ -30,6 +30,16 @@ urlpatterns = [
     views.api_my_applications,
     name="api_my_applications"
     ),
+    path(
+    "api/applications/pending/",
+    views.api_sponsor_applications,
+    name="api_sponsor_applications"
+    ),
+    path(
+    "api/applications/<int:application_id>/review/",
+    views.api_review_application,
+    name="api_review_application"
+    ),
 
     # Application
     path("apply/", views.app_page, name="app_page"),

@@ -86,6 +86,8 @@ class Application(models.Model):
     submission_date = models.DateTimeField(auto_now_add=True)
     review_date = models.DateTimeField(null=True, blank=True)
 
+    rejection_reason = models.TextField(blank=True, default="")
+
     class Meta:
         constraints = [
             models.UniqueConstraint(
