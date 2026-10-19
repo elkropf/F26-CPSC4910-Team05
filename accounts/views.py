@@ -125,7 +125,90 @@ def api_current_user(request):
         }
     )
 
+@require_GET
+def api_organizations(request):
+    organizations = Organization.objects.filter(
+        is_active=True
+    ).order_by("organization_name")
 
+    organization_list = []
+
+    for organization in organizations:
+        organization_list.append({
+            "id": organization.id,
+            "name": organization.organization_name,
+            "description": organization.organization_description,
+        })
+
+    return JsonResponse({
+        "organizations": organization_list
+    })
+
+@require_POST
+def api_submit_application(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({
+            "error": "You must be logged in to apply."
+        }, status=401)
+
+    if request.user.user_type != UserType.DRIVER:
+        return JsonResponse({
+            "error": "Only drivers can submit applications."
+        }, status=403)
+
+    try:
+        driver = request.user.driver
+    except Driver.DoesNotExist:
+        return JsonResponse({
+            "error": "Driver profile not found."
+        }, status=404)
+    
+    data = _request_data(request)
+
+    if data is None:
+        return JsonResponse({
+            "error": "Invalid JSON."
+        }, status=400)
+
+    try:
+        organization_id = int(data.get("organization_id"))
+    except (TypeError, ValueError):
+        return JsonResponse({
+            "error": "A valid organization ID is required."
+        }, status=400)
+
+    try:
+        organization = Organization.objects.get(
+            id=organization_id,
+            is_active=True
+        )
+    except Organization.DoesNotExist:
+        return JsonResponse({
+            "error": "Organization not found."
+        }, status=404)
+    if Application.objects.filter(
+        driver=driver,
+        organization=organization
+    ).exists():
+        return JsonResponse({
+            "error": "You already applied to this organization."
+        }, status=409)
+
+    application = Application.objects.create(
+        driver=driver,
+        organization=organization,
+        application_message=data.get("message", "")
+    )
+
+    return JsonResponse({
+        "application": {
+            "id": application.id,
+            "organization": organization.organization_name,
+            "status": application.application_status,
+            "message": application.application_message,
+        }
+    }, status=201)
+    
 # Existing server-rendered pages.
 
 def app_page(request):
