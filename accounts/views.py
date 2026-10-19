@@ -209,6 +209,46 @@ def api_submit_application(request):
         }
     }, status=201)
     
+@require_GET
+def api_my_applications(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({
+            "error": "You must be logged in."
+        }, status=401)
+
+    if request.user.user_type != UserType.DRIVER:
+        return JsonResponse({
+            "error": "Only drivers can view this application list."
+        }, status=403)
+
+    try:
+        driver = request.user.driver
+    except Driver.DoesNotExist:
+        return JsonResponse({
+            "error": "Driver profile not found."
+        }, status=404)
+
+    applications = Application.objects.filter(
+        driver=driver
+    ).select_related("organization").order_by("-submission_date")
+
+    application_list = []
+
+    for application in applications:
+        application_list.append({
+            "id": application.id,
+            "organization_id": application.organization.id,
+            "organization": application.organization.organization_name,
+            "status": application.application_status,
+            "message": application.application_message,
+            "submitted_at": application.submission_date,
+            "reviewed_at": application.review_date,
+        })
+
+    return JsonResponse({
+        "applications": application_list
+    })
+
 # Existing server-rendered pages.
 
 def app_page(request):

@@ -25,6 +25,11 @@ urlpatterns = [
         views.api_submit_application,
         name="api_submit_application"
     ),
+    path(
+    "api/applications/mine/",
+    views.api_my_applications,
+    name="api_my_applications"
+    ),
 
     # Application
     path("apply/", views.app_page, name="app_page"),
