@@ -228,21 +228,27 @@ class adminLog(models.Model):
     
 #point log
 class pointLog(models.Model):
-    driver = models.ForeignKey(Driver, on_delete=models.CASCADE, related_name='point_logs')
+    driver = models.ForeignKey(
+        Driver,
+        on_delete=models.CASCADE,
+        related_name="point_logs"
+    )
     organization = models.ForeignKey(
-    Organization,
-    on_delete=models.CASCADE,
-    related_name="point_logs",
-    null=True,
-    blank=True
+        Organization,
+        on_delete=models.CASCADE,
+        related_name="point_logs"
+    )
+    changed_by = models.ForeignKey(
+        Sponsor,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="point_changes"
     )
     points_changed = models.IntegerField()
     action = models.CharField(max_length=255)
     timestamp = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"{self.driver} - {self.organization}: {self.points_changed} points changed for {self.action} at {self.timestamp}"
-
+    
 #audit logs
 class auditLog(models.Model):
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='audit_logs')
