@@ -4,7 +4,8 @@
 
     <h2>Login</h2>
 
-    <form action="{% url 'accounts:login' %}" method="get">
+    <form action="{% url 'accounts:login' %}" method="post">
+        {% csrf_token %}
         {% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
         <label>Username</label>
         <input type="text" name="user_in"/>

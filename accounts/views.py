@@ -16,14 +16,19 @@ from django.utils import timezone
 
 
 def _request_data(request):
-    """Read either JSON sent by React or ordinary Django form data."""
+    """Read a JSON object or ordinary Django form data."""
     if request.content_type == "application/json":
         try:
-            return json.loads(request.body or "{}")
-        except json.JSONDecodeError:
+            data = json.loads(request.body or "{}")
+        except (json.JSONDecodeError, UnicodeDecodeError):
             return None
-    return request.POST
 
+        if not isinstance(data, dict):
+            return None
+
+        return data
+
+    return request.POST
 
 def _user_data(user):
     return {
@@ -32,7 +37,6 @@ def _user_data(user):
         "email": user.email,
         "user_type": user.user_type,
     }
-
 
 # JSON authentication endpoints for the React frontend.
 
@@ -77,7 +81,6 @@ def api_register(request):
 
     auth_login(request, user)
     return JsonResponse({"user": _user_data(user)}, status=201)
-
 
 @require_POST
 def api_login(request):
@@ -163,7 +166,7 @@ def api_submit_application(request):
         return JsonResponse({
             "error": "Driver profile not found."
         }, status=404)
-    
+
     data = _request_data(request)
 
     if data is None:
@@ -209,7 +212,7 @@ def api_submit_application(request):
             "message": application.application_message,
         }
     }, status=201)
-    
+
 @require_GET
 def api_my_applications(request):
     if not request.user.is_authenticated:
@@ -238,8 +241,12 @@ def api_my_applications(request):
     for application in applications:
         application_list.append({
             "id": application.id,
-            "organization_id": application.organization.id,
-            "organization": application.organization.organization_name,
+             "organization_id": application.organization_id,
+            "organization": (
+                application.organization.organization_name
+                if application.organization_id is not None
+                else None
+            ),
             "status": application.application_status,
             "message": application.application_message,
             "submitted_at": application.submission_date,
@@ -345,25 +352,29 @@ def api_review_application(request, application_id):
             "error": "A rejection reason is required."
         }, status=400)
 
-    try:
-        application = Application.objects.select_related(
-            "driver",
-            "organization"
-        ).get(
-            id=application_id,
-            organization=sponsor.organization
-        )
-    except Application.DoesNotExist:
-        return JsonResponse({
-            "error": "Application not found."
-        }, status=404)
-
-    if application.application_status != ApplicationStatus.PENDING:
-        return JsonResponse({
-            "error": "This application has already been reviewed."
-        }, status=409)
-
     with transaction.atomic():
+        try:
+            application = Application.objects.select_for_update().get(
+                id=application_id,
+                organization=sponsor.organization,
+            )
+        except Application.DoesNotExist:
+            return JsonResponse({
+                "error": "Application not found."
+            }, status=404)
+
+        if application.application_status != ApplicationStatus.PENDING:
+            return JsonResponse({
+                "error": "This application has already been reviewed."
+            }, status=409)
+
+        if new_status == ApplicationStatus.APPROVED:
+            driver = Driver.objects.select_for_update().get(
+                id=application.driver_id
+            )
+            driver.organization = application.organization
+            driver.save(update_fields=["organization"])
+
         application.application_status = new_status
         application.review_date = timezone.now()
         application.rejection_reason = (
@@ -371,11 +382,11 @@ def api_review_application(request, application_id):
             if new_status == ApplicationStatus.REJECTED
             else ""
         )
-        application.save()
-
-        if new_status == ApplicationStatus.APPROVED:
-            application.driver.organization = application.organization
-            application.driver.save()
+        application.save(update_fields=[
+            "application_status",
+            "review_date",
+            "rejection_reason",
+        ])
 
     return JsonResponse({
         "application": {
@@ -423,6 +434,12 @@ def api_change_points(request, driver_id):
     except (TypeError, ValueError):
         return JsonResponse(
             {"error": "Points changed must be a whole number."},
+            status=400,
+        )
+
+    if not -2147483648 <= points_changed <= 2147483647:
+        return JsonResponse(
+            {"error": "Point adjustment is outside the allowed range."},
             status=400,
         )
 
@@ -509,35 +526,51 @@ def app_status(request):
     return HttpResponse(template.render(context, request))
 
 
+@require_GET
 def check_status(request):
+    if not request.user.is_authenticated:
+        return HttpResponseRedirect(reverse("accounts:login_page"))
+
+    if request.user.user_type != UserType.DRIVER:
+        return HttpResponse("Only drivers can check application status.", status=403)
+
     try:
-        application = Application.objects.get(id=request.GET["app_id"])
+        application_id = int(request.GET.get("app_id", ""))
+    except (TypeError, ValueError):
+        application_id = None
+
+    application = Application.objects.filter(
+        id=application_id,
+        driver__user=request.user,
+    ).first()
+
+    if application is None:
         return render(
             request,
             "app_status.html",
             {
                 "show_search": True,
-                "error_message": "",
-                "app_number": application.id,
-                "app_stat": application.application_status,
+                "error_message": "Could not find that application in your account.",
             },
         )
-    except (KeyError, Application.DoesNotExist):
-        return render(
-            request,
-            "app_status.html",
-            {
-                "show_search": True,
-                "error_message": "Could not find your application ID in our database.",
-            },
-        )
+
+    return render(
+        request,
+        "app_status.html",
+        {
+            "show_search": True,
+            "error_message": "",
+            "app_number": application.id,
+            "app_stat": application.application_status,
+        },
+    )
 
 
 def login_page(request):
-    template = loader.get_template("login.html")
-    return HttpResponse(template.render())
+    return render(request, "login.html")
 
 
+@require_POST
 def login(request):
     """Legacy template login route; the React frontend should use api_login."""
     username = request.POST.get("user_in", "")
@@ -561,8 +594,7 @@ def login(request):
 
 
 def register_page(request):
-    template = loader.get_template("register.html")
-    return HttpResponse(template.render())
+    return render(request, "register.html")
 
 
 @csrf_protect
@@ -606,25 +638,34 @@ def register(request):
     return HttpResponseRedirect(reverse("accounts:driver_homepage"))
 
 
+def _role_homepage(request, required_role, template_name):
+    if not request.user.is_authenticated:
+        return HttpResponseRedirect(reverse("accounts:login_page"))
+
+    if request.user.user_type != required_role:
+        return HttpResponse("You do not have access to this page.", status=403)
+
+    return render(
+        request,
+        template_name,
+        {"username": request.user.username},
+    )
+
+@require_GET
 def driver_homepage(request):
-    template = loader.get_template("driver_home.html")
-    context = {
-        "username": request.user.username if request.user.is_authenticated else "username",
-    }
-    return HttpResponse(template.render(context, request))
+    return _role_homepage(
+        request, UserType.DRIVER, "driver_home.html"
+    )
 
 
+@require_GET
 def sponsor_homepage(request):
-    template = loader.get_template("sponsor_home.html")
-    context = {
-        "username": request.user.username if request.user.is_authenticated else "username",
-    }
-    return HttpResponse(template.render(context, request))
+    return _role_homepage(
+        request, UserType.SPONSOR, "sponsor_home.html"
+    )
 
-
+@require_GET
 def admin_homepage(request):
-    template = loader.get_template("admin_home.html")
-    context = {
-        "username": request.user.username if request.user.is_authenticated else "username",
-    }
-    return HttpResponse(template.render(context, request))
+    return _role_homepage(
+        request, UserType.ADMIN, "admin_home.html"
+    )
