@@ -40,7 +40,13 @@ urlpatterns = [
     views.api_review_application,
     name="api_review_application"
     ),
-
+    # Sponsor point changes
+    path(
+        "api/drivers/<int:driver_id>/points/change/",
+        views.api_change_points,
+        name="api_change_points",
+    ),
+    
     # Application
     path("apply/", views.app_page, name="app_page"),
     path("applying/", views.apply, name="apply"),

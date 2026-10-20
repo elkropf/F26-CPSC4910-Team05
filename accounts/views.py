@@ -11,7 +11,7 @@ from django.urls import reverse
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST
 
-from .models import (Application, ApplicationStatus, Driver, Organization, Sponsor, User, UserType,)
+from .models import (Application, ApplicationStatus, Driver, Organization, Points, pointLog, Sponsor, User, UserType,)
 from django.utils import timezone
 
 
@@ -384,6 +384,107 @@ def api_review_application(request, application_id):
             "rejection_reason": application.rejection_reason,
             "reviewed_at": application.review_date,
         }
+    })
+
+@require_POST
+def api_change_points(request, driver_id):
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "You must be logged in."}, status=401)
+
+    if request.user.user_type != UserType.SPONSOR:
+        return JsonResponse(
+            {"error": "Only sponsors can change points."},
+            status=403,
+        )
+
+    try:
+        sponsor = request.user.sponsor
+    except Sponsor.DoesNotExist:
+        return JsonResponse(
+            {"error": "Sponsor profile not found."},
+            status=404,
+        )
+
+    if sponsor.organization is None:
+        return JsonResponse(
+            {"error": "Sponsor is not connected to an organization."},
+            status=400,
+        )
+
+    data = _request_data(request)
+    if data is None or not hasattr(data, "get"):
+        return JsonResponse({"error": "Invalid request data."}, status=400)
+
+    raw_points = data.get("points_changed")
+    try:
+        if isinstance(raw_points, bool) or not isinstance(raw_points, (int, str)):
+            raise ValueError
+        points_changed = int(raw_points)
+    except (TypeError, ValueError):
+        return JsonResponse(
+            {"error": "Points changed must be a whole number."},
+            status=400,
+        )
+
+    reason = data.get("reason", "")
+    if not isinstance(reason, str):
+        return JsonResponse({"error": "Reason must be text."}, status=400)
+    reason = reason.strip()
+
+    if points_changed == 0:
+        return JsonResponse(
+            {"error": "Points changed cannot be zero."},
+            status=400,
+        )
+
+    if not reason or len(reason) > 255:
+        return JsonResponse(
+            {"error": "A reason between 1 and 255 characters is required."},
+            status=400,
+        )
+
+    with transaction.atomic():
+        try:
+            driver = Driver.objects.select_for_update().get(
+                id=driver_id,
+                organization=sponsor.organization,
+            )
+        except Driver.DoesNotExist:
+            return JsonResponse(
+                {"error": "Driver not found in your organization."},
+                status=404,
+            )
+
+        balance, _ = Points.objects.select_for_update().get_or_create(
+            driver=driver,
+            organization=sponsor.organization,
+        )
+
+        new_balance = balance.points_balance + points_changed
+
+        if new_balance < 0 or new_balance > 4294967295:
+            return JsonResponse(
+                {"error": "The resulting balance is outside the allowed range."},
+                status=400,
+            )
+
+        balance.points_balance = new_balance
+        balance.save()
+
+        log = pointLog.objects.create(
+            driver=driver,
+            organization=sponsor.organization,
+            changed_by=sponsor,
+            points_changed=points_changed,
+            action=reason,
+        )
+
+    return JsonResponse({
+        "driver_id": driver.id,
+        "points_balance": balance.points_balance,
+        "points_changed": points_changed,
+        "reason": log.action,
+        "timestamp": log.timestamp,
     })
 
 # Existing server-rendered pages.
