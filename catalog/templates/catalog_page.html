@@ -1,6 +1,22 @@
 <!DOCTYPE html>
 <html>
 <body>
-    {% if response %}<p>{{ response }}</p>{% endif %}
+	{% if response %}
+        {% for item in response.itemSummaries %}
+            <p>{{ item.title }}</p><br>
+            <p>{{ item.price }}</p>
+        {% endfor %}
+	{% else %}
+		{% if error_message %}<strong><p>{{ error_message }}</p></strong>{% endif %}
+		<form action="{% url 'catalog:search' %}" method="get">
+			<label>Search</label>
+			<input type="text" name="search"/><br>
+			<label>Limit</label>
+			<input type="number" name="limit"/><br>
+			<label>Offset</label>
+			<input type="number" name="offset"/><br>
+			<button type="submit">Search</button>
+		</form>
+	{% endif %}
 </body>
 </html>
