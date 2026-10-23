@@ -22,12 +22,23 @@ load_dotenv(BASE_DIR / ".env")
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-p9iu1o3kkbu*u%l6((izy=jx=_&z&z15-x676=j3@ynf5xeh*1'
+# Make it more secure and put it in .env file.
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
+
+if not SECRET_KEY:
+    raise RuntimeError("SECRET KEY IS MISSING")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DJANGO_DEBUG", "False").lower() == "true"
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.getenv(
+        "DJANGO_ALLOWED_HOSTS",
+        "localhost,127.0.0.1"
+    ).split(",")
+    if host.strip()
+]
 
 
 # Application definition
@@ -55,6 +66,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
 ]
 
 ROOT_URLCONF = 'Good_Driver_Incentive_Program.urls'
@@ -130,6 +142,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
 STATIC_URL = 'static/'
+
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 
 # Email
