@@ -468,9 +468,9 @@ def api_change_points(request, driver_id):
             status=400,
         )
 
-    if not reason or len(reason) > 255:
+    if not reason:
         return JsonResponse(
-            {"error": "A reason between 1 and 255 characters is required."},
+            {"error": "A reason is required."},
             status=400,
         )
 

@@ -257,7 +257,7 @@ class pointLog(models.Model):
     changed_by_user = models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.SET_NULL,null=True,blank=True,related_name="point_changes")
 
     points_changed = models.IntegerField()
-    action = models.CharField(max_length=255)
+    action = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
 
 #audit logs
