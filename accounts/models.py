@@ -14,6 +14,11 @@ class UserType(models.TextChoices):
 class User(AbstractUser):
     user_type = models.CharField(max_length=20, choices=UserType.choices)
 
+    #bulk needs longer username field
+    first_name = models.TextField(blank=True)
+    last_name = models.TextField(blank=True)
+    email = models.TextField(blank=True)
+
 # Driver Class
 class Driver(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
@@ -25,7 +30,7 @@ class Driver(models.Model):
 
 # sponsor organization
 class Organization(models.Model):
-    organization_name = models.CharField(max_length=255)
+    organization_name = models.TextField()
     organization_description = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
