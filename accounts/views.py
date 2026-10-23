@@ -505,7 +505,7 @@ def api_change_points(request, driver_id):
         log = pointLog.objects.create(
             driver=driver,
             organization=sponsor.organization,
-            changed_by=sponsor,
+            changed_by_user=request.user,
             points_changed=points_changed,
             action=reason,
         )
@@ -594,7 +594,7 @@ def api_my_point_history(request):
         driver=driver,
     ).select_related(
         "organization",
-        "changed_by__user",
+        "changed_by_user",
     ).order_by("-timestamp", "-id")
 
     organization_id = request.GET.get("organization_id")
@@ -620,8 +620,8 @@ def api_my_point_history(request):
             "points_changed": log.points_changed,
             "reason": log.action,
             "changed_by": (
-                log.changed_by.user.username
-                if log.changed_by_id is not None
+                log.changed_by_user.username
+                if log.changed_by_user_id is not None
                 else None
             ),
             "timestamp": log.timestamp,
@@ -673,7 +673,7 @@ def api_sponsor_point_tracking(request):
     logs = pointLog.objects.filter(
         organization_id=sponsor.organization_id,
         driver__memberships__organization_id=sponsor.organization_id,
-    ).select_related("changed_by__user").order_by("-timestamp", "-id")
+    ).select_related("changed_by_user").order_by("-timestamp", "-id")
 
     driver_id = request.GET.get("driver_id")
     start_date = request.GET.get("start_date")
@@ -747,8 +747,8 @@ def api_sponsor_point_tracking(request):
             "points_changed": log.points_changed,
             "reason": log.action,
             "changed_by": (
-                log.changed_by.user.username
-                if log.changed_by_id is not None
+                log.changed_by_user.username
+                if log.changed_by_user_id is not None
                 else None
             ),
             "timestamp": log.timestamp,
