@@ -1,5 +1,6 @@
 from uuid import uuid4
 from django.db import DataError, IntegrityError, transaction
+from .account_setup import send_account_setup_email
 from .models import Driver, DriverOrganization, Organization, Sponsor, User, UserType, Points, pointLog
 
 
@@ -272,7 +273,7 @@ def process_import_row(line, uploader):
     }
 
 #process each file line and return its result and dont stop on bad lines, just report them
-def process_import_file(uploaded_file, uploader):
+def process_import_file(uploaded_file, uploader, base_url):
     for line_number, raw_line in enumerate(uploaded_file, start=1):
         try:
             line = (
@@ -308,6 +309,17 @@ def process_import_file(uploaded_file, uploader):
             }
 
         else:
+            if result.get("created") and result.get("user_id"):
+                user = User.objects.get(id=result["user_id"])
+
+                try:
+                    send_account_setup_email(user, base_url)
+                except Exception:
+                    result["warnings"].append(
+                        "Account created, but the setup email failed. "
+                        "An administrator must resend it."
+                    )
+
             yield {
                 "line": line_number,
                 "status": "success",

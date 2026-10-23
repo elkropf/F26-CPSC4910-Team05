@@ -2,6 +2,9 @@ from django.urls import path
 
 from . import views
 
+from django.contrib.auth.views import PasswordResetConfirmView
+from django.urls import reverse_lazy
+
 app_name = "accounts"
 
 urlpatterns = [
@@ -49,4 +52,14 @@ urlpatterns = [
     path("driverhome/", views.driver_homepage, name="driver_homepage"),
     path("sponsorhome/", views.sponsor_homepage, name="sponsor_homepage"),
     path("adminhome/", views.admin_homepage, name="admin_homepage"),
+
+    #temp pass for emailed account setup link
+    path(
+        "account/setup/<uidb64>/<token>/",
+        PasswordResetConfirmView.as_view(
+            template_name="account_setup.html",
+            success_url=reverse_lazy("accounts:login_page"),
+        ),
+        name="account_setup",
+    ),
 ]

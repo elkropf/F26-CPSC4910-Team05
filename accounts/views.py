@@ -800,10 +800,11 @@ def api_bulk_import(request):
         )
 
     uploader = request.user
+    base_url = request.build_absolute_uri("/")
 
     def results():
         try:
-            for result in process_import_file(uploaded_file, uploader):
+            for result in process_import_file(uploaded_file, uploader, base_url):
                 yield json.dumps(result) + "\n"
         finally:
             uploaded_file.close()
