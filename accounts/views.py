@@ -16,6 +16,9 @@ from django.utils import timezone
 from datetime import date, datetime, time, timedelta
 from django.http import StreamingHttpResponse
 from .bulk_import import process_import_file
+from django.db.models import Q
+from .account_setup import send_account_setup_email
+
 
 #Read JSON / form data from a request
 def _request_data(request):
@@ -815,6 +818,62 @@ def api_bulk_import(request):
     )
     response["Cache-Control"] = "no-store"
     return response
+
+#resend setup instructions
+@require_POST
+def api_resend_account_setup(request, user_id):
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "You must be logged in."}, status=401)
+
+    if request.user.user_type not in (UserType.ADMIN, UserType.SPONSOR):
+        return JsonResponse({"error": "Access denied."}, status=403)
+
+    users = User.objects.filter(
+        id=user_id,
+        is_active=True,
+        user_type__in=[UserType.DRIVER, UserType.SPONSOR],
+    )
+
+    if request.user.user_type == UserType.SPONSOR:
+        try:
+            organization_id = request.user.sponsor.organization_id
+        except Sponsor.DoesNotExist:
+            return JsonResponse({"error": "Sponsor profile not found."}, status=404)
+
+        if organization_id is None:
+            return JsonResponse({"error": "Sponsor has no organization."}, status=400)
+
+        users = users.filter(
+            Q(driver__memberships__organization_id=organization_id)
+            | Q(sponsor__organization_id=organization_id)
+        )
+
+    user = users.distinct().first()
+
+    if user is None:
+        return JsonResponse({"error": "Account not found."}, status=404)
+
+    if user.has_usable_password():
+        return JsonResponse(
+            {"error": "Account setup is complete. Use password reset instead."},
+            status=409,
+        )
+
+    if not user.email:
+        return JsonResponse({"error": "Account has no email address."}, status=400)
+
+    try:
+        send_account_setup_email(user, request.build_absolute_uri("/"))
+    except Exception:
+        return JsonResponse(
+            {"error": "Setup email could not be sent. Please try again later."},
+            status=503,
+        )
+
+    return JsonResponse({"detail": "Setup email submitted successfully."})
+
+
+
 
 # Existing server-rendered pages.
 

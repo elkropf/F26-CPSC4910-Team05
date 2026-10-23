@@ -62,4 +62,7 @@ urlpatterns = [
         ),
         name="account_setup",
     ),
+
+    # Resend an imported user's account-setup email
+    path("api/users/<int:user_id>/setup/resend/",views.api_resend_account_setup,name="api_resend_account_setup",),
 ]
