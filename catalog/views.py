@@ -75,3 +75,52 @@ def search(request):
             'response': items,
         }
     )
+
+def add_to_catalog(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({
+            "error": "You must be logged in to apply."
+        }, status=401)
+
+    if request.user.user_type != UserType.SPONSOR:
+        return JsonResponse({
+            "error": "Only sponsors can change an organization's catalog."
+        }, status=403)
+
+    try:
+        sponsor = request.user.sponsor
+    except Sponsor.DoesNotExist:
+        return JsonResponse({
+            "error": "Sponsor profile not found."
+        }, status=404)
+
+    data = _request_data(request)
+    if data is None:
+        return JsonResponse({
+            "error": "Invalid JSON."
+        }, status=400)
+    
+    try:
+        organization_id = int(data.get("organization_id"))
+    except (TypeError, ValueError):
+        return JsonResponse({
+            "error": "A valid organization ID is required."
+        }, status=400)
+
+    selections = request.POST["chosen"]
+    for x in selections:
+        Product.objects.create(
+            organization=organization_id,
+            product_name=selections['title'],
+            product_description="",
+            points_value=selections['price']['value']
+        )
+
+    return render(
+        request,
+        "catalog_page.html",
+        {
+            'error_message': "Successfully added items.",
+            'response': None
+        }
+    )
