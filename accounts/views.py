@@ -11,11 +11,11 @@ from django.urls import reverse
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST
 
-from .models import (Application, ApplicationStatus, Driver, Organization, Points, pointLog, Sponsor, User, UserType,)
+from .models import (Application, ApplicationStatus, Driver, DriverOrganization, Organization, Points, User, UserType, Sponsor, pointLog,)
 from django.utils import timezone
 from datetime import date, datetime, time, timedelta
 
-
+#Read JSON / form data from a request
 def _request_data(request):
     """Read a JSON object or ordinary Django form data."""
     if request.content_type == "application/json":
@@ -31,6 +31,7 @@ def _request_data(request):
 
     return request.POST
 
+#format user info for api
 def _user_data(user):
     return {
         "id": user.id,
@@ -41,12 +42,15 @@ def _user_data(user):
 
 # JSON authentication endpoints for the React frontend.
 
+#set csrf cookie for React frontend
 @require_GET
 @ensure_csrf_cookie
+
+#set csrf cookie for React frontend
 def api_csrf(request):
     return JsonResponse({"detail": "CSRF cookie set."})
 
-
+#register a new driver account
 @require_POST
 def api_register(request):
     data = _request_data(request)
@@ -83,6 +87,7 @@ def api_register(request):
     auth_login(request, user)
     return JsonResponse({"user": _user_data(user)}, status=201)
 
+#authenticate and start new user sesssio
 @require_POST
 def api_login(request):
     data = _request_data(request)
@@ -111,13 +116,13 @@ def api_login(request):
     auth_login(request, user)
     return JsonResponse({"user": _user_data(user)})
 
-
+#end current user session
 @require_POST
 def api_logout(request):
     auth_logout(request)
     return JsonResponse({"detail": "Logged out successfully."})
 
-
+#return currentuser signed in info
 @require_GET
 def api_current_user(request):
     if not request.user.is_authenticated:
@@ -130,6 +135,7 @@ def api_current_user(request):
         }
     )
 
+#list active sponsor organizations
 @require_GET
 def api_organizations(request):
     organizations = Organization.objects.filter(
@@ -149,6 +155,7 @@ def api_organizations(request):
         "organizations": organization_list
     })
 
+#submit driver applicationto an org
 @require_POST
 def api_submit_application(request):
     if not request.user.is_authenticated:
@@ -214,6 +221,7 @@ def api_submit_application(request):
         }
     }, status=201)
 
+#list driver applications submitted by current user
 @require_GET
 def api_my_applications(request):
     if not request.user.is_authenticated:
@@ -258,6 +266,7 @@ def api_my_applications(request):
         "applications": application_list
     })
 
+#list pending applications for the sponsor's organization
 @require_GET
 def api_sponsor_applications(request):
     if not request.user.is_authenticated:
@@ -303,6 +312,7 @@ def api_sponsor_applications(request):
         "applications": application_list
     })
 
+#approve / rehject and application and add approved membership
 @require_POST
 def api_review_application(request, application_id):
     if not request.user.is_authenticated:
@@ -373,8 +383,10 @@ def api_review_application(request, application_id):
             driver = Driver.objects.select_for_update().get(
                 id=application.driver_id
             )
-            driver.organization = application.organization
-            driver.save(update_fields=["organization"])
+            DriverOrganization.objects.get_or_create(
+                driver=driver,
+                organization_id=application.organization_id,
+            )
 
         application.application_status = new_status
         application.review_date = timezone.now()
@@ -398,6 +410,7 @@ def api_review_application(request, application_id):
         }
     })
 
+#adjust drivers organization sepcific points and log change
 @require_POST
 def api_change_points(request, driver_id):
     if not request.user.is_authenticated:
@@ -465,7 +478,7 @@ def api_change_points(request, driver_id):
         try:
             driver = Driver.objects.select_for_update().get(
                 id=driver_id,
-                organization=sponsor.organization,
+                memberships__organization_id=sponsor.organization_id,
             )
         except Driver.DoesNotExist:
             return JsonResponse(
@@ -505,6 +518,7 @@ def api_change_points(request, driver_id):
         "timestamp": log.timestamp,
     })
 
+#return signed in drivers points balance
 @require_GET
 def api_my_points(request):
     if not request.user.is_authenticated:
@@ -527,25 +541,33 @@ def api_my_points(request):
             status=404,
         )
 
-    if driver.organization_id is None:
-        return JsonResponse({
-            "organization_id": None,
-            "organization": None,
-            "points_balance": 0,
-            "last_updated": None,
+    memberships = DriverOrganization.objects.filter(
+        driver=driver,
+    ).select_related("organization").order_by(
+        "organization__organization_name", "organization_id"
+    )
+
+    balances = {
+        balance.organization_id: balance
+        for balance in Points.objects.filter(driver=driver)
+    }
+
+    organizations = []
+
+    for membership in memberships:
+        organization = membership.organization
+        balance = balances.get(organization.id)
+
+        organizations.append({
+            "organization_id": organization.id,
+            "organization": organization.organization_name,
+            "points_balance": balance.points_balance if balance else 0,
+            "last_updated": balance.last_updated if balance else None,
         })
 
-    balance = Points.objects.filter(
-        driver=driver,
-        organization_id=driver.organization_id,
-    ).first()
+    return JsonResponse({"organizations": organizations})
 
-    return JsonResponse({
-        "organization_id": driver.organization_id,
-        "organization": driver.organization.organization_name,
-        "points_balance": balance.points_balance if balance else 0,
-        "last_updated": balance.last_updated if balance else None,
-    })
+#drivers point change history
 @require_GET
 def api_my_point_history(request):
     if not request.user.is_authenticated:
@@ -575,6 +597,21 @@ def api_my_point_history(request):
         "changed_by__user",
     ).order_by("-timestamp", "-id")
 
+    organization_id = request.GET.get("organization_id")
+
+    if organization_id is not None:
+        try:
+            organization_id = int(organization_id)
+            if organization_id <= 0:
+                raise ValueError
+        except (TypeError, ValueError):
+            return JsonResponse(
+                {"error": "Organization ID must be a positive whole number."},
+                status=400,
+            )
+
+        logs = logs.filter(organization_id=organization_id)
+
     history = [
         {
             "id": log.id,
@@ -594,6 +631,7 @@ def api_my_point_history(request):
 
     return JsonResponse({"history": history})
 
+#report driver balance and history for sponsor's organization
 @require_GET
 def api_sponsor_point_tracking(request):
     if not request.user.is_authenticated:
@@ -623,7 +661,7 @@ def api_sponsor_point_tracking(request):
         )
 
     drivers = Driver.objects.filter(
-        organization_id=sponsor.organization_id,
+        memberships__organization_id=sponsor.organization_id,
     ).select_related("user").order_by("user__username")
 
     balances = dict(
@@ -634,7 +672,7 @@ def api_sponsor_point_tracking(request):
 
     logs = pointLog.objects.filter(
         organization_id=sponsor.organization_id,
-        driver__organization_id=sponsor.organization_id,
+        driver__memberships__organization_id=sponsor.organization_id,
     ).select_related("changed_by__user").order_by("-timestamp", "-id")
 
     driver_id = request.GET.get("driver_id")
@@ -732,6 +770,7 @@ def api_sponsor_point_tracking(request):
 
 # Existing server-rendered pages.
 
+#display application form
 def app_page(request):
     template = loader.get_template("application.html")
     context = {
@@ -739,11 +778,11 @@ def app_page(request):
     }
     return HttpResponse(template.render(context, request))
 
-
+#placeholder legacy application search page
 def apply(request):
     raise Http404("Not implemented yet")
 
-
+#placwehokder for legacy application submision
 def app_status(request):
     template = loader.get_template("app_status.html")
     context = {
@@ -751,7 +790,7 @@ def app_status(request):
     }
     return HttpResponse(template.render(context, request))
 
-
+#look up for application for driver
 @require_GET
 def check_status(request):
     if not request.user.is_authenticated:
@@ -791,11 +830,11 @@ def check_status(request):
         },
     )
 
-
+#django login form with csrf protection
 def login_page(request):
     return render(request, "login.html")
 
-
+#process form and redirect by role
 @require_POST
 def login(request):
     """Legacy template login route; the React frontend should use api_login."""
@@ -818,11 +857,11 @@ def login(request):
     }.get(user.user_type, "accounts:login_page")
     return HttpResponseRedirect(reverse(homepage))
 
-
+#display django registration form
 def register_page(request):
     return render(request, "register.html")
 
-
+#process django registration form and create new driver account
 @csrf_protect
 def register(request):
     """Legacy template registration route; the React frontend should use api_register."""
@@ -863,7 +902,7 @@ def register(request):
     auth_login(request, user)
     return HttpResponseRedirect(reverse("accounts:driver_homepage"))
 
-
+#display role specific homepage for driver, sponsor, or admin
 def _role_homepage(request, required_role, template_name):
     if not request.user.is_authenticated:
         return HttpResponseRedirect(reverse("accounts:login_page"))
@@ -877,19 +916,21 @@ def _role_homepage(request, required_role, template_name):
         {"username": request.user.username},
     )
 
+#display driver homepage
 @require_GET
 def driver_homepage(request):
     return _role_homepage(
         request, UserType.DRIVER, "driver_home.html"
     )
 
-
+#displat sponsor homepage
 @require_GET
 def sponsor_homepage(request):
     return _role_homepage(
         request, UserType.SPONSOR, "sponsor_home.html"
     )
 
+#display admin homepage
 @require_GET
 def admin_homepage(request):
     return _role_homepage(
