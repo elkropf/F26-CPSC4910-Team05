@@ -1,6 +1,6 @@
 from uuid import uuid4
-from django.db import transaction
-from .models import Driver, DriverOrganization, Organization, Sponsor, User, UserType, Points, PointLog
+from django.db import DataError, IntegrityError, transaction
+from .models import Driver, DriverOrganization, Organization, Sponsor, User, UserType, Points, pointLog
 
 
 #report error for one row
@@ -108,10 +108,10 @@ def read_import_points(record):
     return points
 
 #organization for driver or sponsor
-def import_organization(record):
+def import_organization(record, uploader):
     warnings = []
 
-    if uploader.user_type == UsetType.SPONSOR:
+    if uploader.user_type == UserType.SPONSOR:
         try:
             organization = uploader.sponsor.organization
         except Sponsor.DoesNotExist:
@@ -212,10 +212,104 @@ def apply_import_points(driver, organization, points, reason, uploader):
         balance.points_balance = new_balance
         balance.save()
 
-        PointLog.objects.create(
+        pointLog.objects.create(
             driver=driver,
             organization=organization,
             changed_by_user=uploader,
             points_changed=points,
             action=reason,
         )
+
+#process only one record and undo if fails
+@transaction.atomic
+def process_import_row(line, uploader):
+    if not uploader.is_authenticated or not uploader.is_active:
+        raise ImportRowError("An active signed-in account is required.")
+
+    if uploader.user_type not in (UserType.SPONSOR, UserType.ADMIN):
+        raise ImportRowError("Only sponsors and admins can import users.")
+
+    record = split_import_row(line)
+
+    if record["type"] == "O":
+        organization = create_import_organization(record, uploader)
+        return {
+            "type": "O",
+            "organization_id": organization.id,
+            "created": True,
+            "warnings": [],
+        }
+
+    organization, warnings = import_organization(record, uploader)
+    is_driver = record["type"] == "D"
+
+    points = read_import_points(record) if is_driver else None
+
+    if not is_driver and (record["points"] or record["reason"]):
+        warnings.append("Points and reason ignored for a sponsor account.")
+
+    user, created = find_or_create_import_user(
+        email=record["email"],
+        first_name=record["first_name"],
+        last_name=record["last_name"],
+        user_type=UserType.DRIVER if is_driver else UserType.SPONSOR,
+    )
+
+    if is_driver:
+        driver, _ = add_import_driver(user, organization)
+        apply_import_points(
+            driver, organization, points, record["reason"], uploader
+        )
+    else:
+        add_import_sponsor(user, organization)
+
+    return {
+        "type": record["type"],
+        "user_id": user.id,
+        "organization_id": organization.id,
+        "created": created,
+        "warnings": warnings,
+    }
+
+#process each file line and return its result and dont stop on bad lines, just report them
+def process_import_file(uploaded_file, uploader):
+    for line_number, raw_line in enumerate(uploaded_file, start=1):
+        try:
+            line = (
+                raw_line.decode("utf-8")
+                if isinstance(raw_line, bytes)
+                else raw_line
+            )
+
+            if line_number == 1:
+                line = line.removeprefix("\ufeff")
+
+            result = process_import_row(line, uploader)
+
+        except UnicodeDecodeError:
+            yield {
+                "line": line_number,
+                "status": "error",
+                "error": "This line is not valid UTF-8 text.",
+            }
+
+        except ImportRowError as error:
+            yield {
+                "line": line_number,
+                "status": "error",
+                "error": str(error),
+            }
+
+        except (DataError, IntegrityError):
+            yield {
+                "line": line_number,
+                "status": "error",
+                "error": "This row conflicts with database constraints.",
+            }
+
+        else:
+            yield {
+                "line": line_number,
+                "status": "success",
+                **result,
+            }

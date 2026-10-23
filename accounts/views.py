@@ -14,6 +14,8 @@ from django.views.decorators.http import require_GET, require_POST
 from .models import (Application, ApplicationStatus, Driver, DriverOrganization, Organization, Points, User, UserType, Sponsor, pointLog,)
 from django.utils import timezone
 from datetime import date, datetime, time, timedelta
+from django.http import StreamingHttpResponse
+from .bulk_import import process_import_file
 
 #Read JSON / form data from a request
 def _request_data(request):
@@ -767,6 +769,51 @@ def api_sponsor_point_tracking(request):
             for driver in drivers
         ],
     })
+
+#upload bulk-import file and stream line-numbered results
+@require_POST
+def api_bulk_import(request):
+    if not request.user.is_authenticated:
+        return JsonResponse(
+            {"error": "You must be logged in."},
+            status=401,
+        )
+
+    if request.user.user_type not in (UserType.SPONSOR, UserType.ADMIN):
+        return JsonResponse(
+            {"error": "Only sponsors and admins can import users."},
+            status=403,
+        )
+
+    uploaded_file = request.FILES.get("file")
+
+    if uploaded_file is None:
+        return JsonResponse(
+            {"error": "Upload a file using the field named 'file'."},
+            status=400,
+        )
+
+    if uploaded_file.size == 0:
+        return JsonResponse(
+            {"error": "The uploaded file is empty."},
+            status=400,
+        )
+
+    uploader = request.user
+
+    def results():
+        try:
+            for result in process_import_file(uploaded_file, uploader):
+                yield json.dumps(result) + "\n"
+        finally:
+            uploaded_file.close()
+
+    response = StreamingHttpResponse(
+        results(),
+        content_type="application/x-ndjson",
+    )
+    response["Cache-Control"] = "no-store"
+    return response
 
 # Existing server-rendered pages.
 
