@@ -13,6 +13,7 @@ from django.views.decorators.http import require_GET, require_POST
 
 from .models import (Application, ApplicationStatus, Driver, Organization, Points, pointLog, Sponsor, User, UserType,)
 from django.utils import timezone
+from datetime import date, datetime, time, timedelta
 
 
 def _request_data(request):
@@ -502,6 +503,231 @@ def api_change_points(request, driver_id):
         "points_changed": points_changed,
         "reason": log.action,
         "timestamp": log.timestamp,
+    })
+
+@require_GET
+def api_my_points(request):
+    if not request.user.is_authenticated:
+        return JsonResponse(
+            {"error": "You must be logged in."},
+            status=401,
+        )
+
+    if request.user.user_type != UserType.DRIVER:
+        return JsonResponse(
+            {"error": "Only drivers can view their points here."},
+            status=403,
+        )
+
+    try:
+        driver = request.user.driver
+    except Driver.DoesNotExist:
+        return JsonResponse(
+            {"error": "Driver profile not found."},
+            status=404,
+        )
+
+    if driver.organization_id is None:
+        return JsonResponse({
+            "organization_id": None,
+            "organization": None,
+            "points_balance": 0,
+            "last_updated": None,
+        })
+
+    balance = Points.objects.filter(
+        driver=driver,
+        organization_id=driver.organization_id,
+    ).first()
+
+    return JsonResponse({
+        "organization_id": driver.organization_id,
+        "organization": driver.organization.organization_name,
+        "points_balance": balance.points_balance if balance else 0,
+        "last_updated": balance.last_updated if balance else None,
+    })
+@require_GET
+def api_my_point_history(request):
+    if not request.user.is_authenticated:
+        return JsonResponse(
+            {"error": "You must be logged in."},
+            status=401,
+        )
+
+    if request.user.user_type != UserType.DRIVER:
+        return JsonResponse(
+            {"error": "Only drivers can view their point history here."},
+            status=403,
+        )
+
+    try:
+        driver = request.user.driver
+    except Driver.DoesNotExist:
+        return JsonResponse(
+            {"error": "Driver profile not found."},
+            status=404,
+        )
+
+    logs = pointLog.objects.filter(
+        driver=driver,
+    ).select_related(
+        "organization",
+        "changed_by__user",
+    ).order_by("-timestamp", "-id")
+
+    history = [
+        {
+            "id": log.id,
+            "organization_id": log.organization_id,
+            "organization": log.organization.organization_name,
+            "points_changed": log.points_changed,
+            "reason": log.action,
+            "changed_by": (
+                log.changed_by.user.username
+                if log.changed_by_id is not None
+                else None
+            ),
+            "timestamp": log.timestamp,
+        }
+        for log in logs
+    ]
+
+    return JsonResponse({"history": history})
+
+@require_GET
+def api_sponsor_point_tracking(request):
+    if not request.user.is_authenticated:
+        return JsonResponse(
+            {"error": "You must be logged in."},
+            status=401,
+        )
+
+    if request.user.user_type != UserType.SPONSOR:
+        return JsonResponse(
+            {"error": "Only sponsors can view this report."},
+            status=403,
+        )
+
+    try:
+        sponsor = request.user.sponsor
+    except Sponsor.DoesNotExist:
+        return JsonResponse(
+            {"error": "Sponsor profile not found."},
+            status=404,
+        )
+
+    if sponsor.organization_id is None:
+        return JsonResponse(
+            {"error": "Sponsor is not connected to an organization."},
+            status=400,
+        )
+
+    drivers = Driver.objects.filter(
+        organization_id=sponsor.organization_id,
+    ).select_related("user").order_by("user__username")
+
+    balances = dict(
+        Points.objects.filter(
+            organization_id=sponsor.organization_id,
+        ).values_list("driver_id", "points_balance")
+    )
+
+    logs = pointLog.objects.filter(
+        organization_id=sponsor.organization_id,
+        driver__organization_id=sponsor.organization_id,
+    ).select_related("changed_by__user").order_by("-timestamp", "-id")
+
+    driver_id = request.GET.get("driver_id")
+    start_date = request.GET.get("start_date")
+    end_date = request.GET.get("end_date")
+
+    if driver_id is not None:
+        try:
+            driver_id = int(driver_id)
+            if driver_id <= 0:
+                raise ValueError
+        except (TypeError, ValueError):
+            return JsonResponse(
+                {"error": "Driver ID must be a positive whole number."},
+                status=400,
+            )
+
+        drivers = drivers.filter(id=driver_id)
+
+        if not drivers.exists():
+            return JsonResponse(
+                {"error": "Driver not found in your organization."},
+                status=404,
+            )
+
+        logs = logs.filter(driver_id=driver_id)
+
+    try:
+        start = date.fromisoformat(start_date) if start_date else None
+        end = date.fromisoformat(end_date) if end_date else None
+    except ValueError:
+        return JsonResponse(
+            {"error": "Dates must use YYYY-MM-DD format."},
+            status=400,
+        )
+
+    if start and end and start > end:
+        return JsonResponse(
+            {"error": "Start date must be on or before end date."},
+            status=400,
+        )
+
+    current_timezone = timezone.get_current_timezone()
+
+    if start:
+        start_time = timezone.make_aware(
+            datetime.combine(start, time.min),
+            current_timezone,
+        )
+        logs = logs.filter(timestamp__gte=start_time)
+
+    if end:
+        try:
+            next_day = end + timedelta(days=1)
+        except OverflowError:
+            return JsonResponse(
+                {"error": "End date is outside the supported range."},
+                status=400,
+            )
+
+        end_time = timezone.make_aware(
+            datetime.combine(next_day, time.min),
+            current_timezone,
+        )
+        logs = logs.filter(timestamp__lt=end_time)
+
+    history_by_driver = {}
+
+    for log in logs:
+        history_by_driver.setdefault(log.driver_id, []).append({
+            "id": log.id,
+            "points_changed": log.points_changed,
+            "reason": log.action,
+            "changed_by": (
+                log.changed_by.user.username
+                if log.changed_by_id is not None
+                else None
+            ),
+            "timestamp": log.timestamp,
+        })
+
+    return JsonResponse({
+        "organization_id": sponsor.organization_id,
+        "drivers": [
+            {
+                "driver_id": driver.id,
+                "username": driver.user.username,
+                "name": driver.user.get_full_name() or driver.user.username,
+                "points_balance": balances.get(driver.id, 0),
+                "history": history_by_driver.get(driver.id, []),
+            }
+            for driver in drivers
+        ],
     })
 
 # Existing server-rendered pages.

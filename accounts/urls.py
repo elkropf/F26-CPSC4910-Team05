@@ -13,40 +13,23 @@ urlpatterns = [
     path("api/auth/me/", views.api_current_user, name="api_current_user"),
 
     # Organizations
-    path(
-        "api/organizations/",
-        views.api_organizations,
-        name="api_organizations"
-    ),
+    path("api/organizations/", views.api_organizations, name="api_organizations"),
 
     # Submit a driver application through the React API
-    path(
-        "api/applications/submit/",
-        views.api_submit_application,
-        name="api_submit_application"
-    ),
-    path(
-    "api/applications/mine/",
-    views.api_my_applications,
-    name="api_my_applications"
-    ),
-    path(
-    "api/applications/pending/",
-    views.api_sponsor_applications,
-    name="api_sponsor_applications"
-    ),
-    path(
-    "api/applications/<int:application_id>/review/",
-    views.api_review_application,
-    name="api_review_application"
-    ),
+    path("api/applications/submit/", views.api_submit_application, name="api_submit_application"),
+    path("api/applications/mine/",views.api_my_applications,name="api_my_applications"),
+    path("api/applications/pending/",views.api_sponsor_applications,name="api_sponsor_applications"),
+    path("api/applications/<int:application_id>/review/",views.api_review_application,name="api_review_application"),
+
     # Sponsor point changes
-    path(
-        "api/drivers/<int:driver_id>/points/change/",
-        views.api_change_points,
-        name="api_change_points",
-    ),
-    
+    path("api/drivers/<int:driver_id>/points/change/", views.api_change_points, name="api_change_points",),
+    # Sponsor point tracking
+    path("api/points/sponsor/",views.api_sponsor_point_tracking,name="api_sponsor_point_tracking",),
+
+    # Driver points balance
+    path("api/points/mine/", views.api_my_points, name="api_my_points",),
+    path("api/points/history/", views.api_my_point_history, name="api_my_point_history",),
+
     # Application
     path("apply/", views.app_page, name="app_page"),
     path("applying/", views.apply, name="apply"),
