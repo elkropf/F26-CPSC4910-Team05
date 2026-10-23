@@ -64,5 +64,9 @@ urlpatterns = [
     ),
 
     # Resend an imported user's account-setup email
-    path("api/users/<int:user_id>/setup/resend/",views.api_resend_account_setup,name="api_resend_account_setup",),
+    path("api/users/<int:user_id>/setup/resend/",views.api_resend_account_setup,name="api_resend_account_setup"),
+
+    path("api/users/bulk-import/<int:job_id>/",views.api_bulk_import_status,name="api_bulk_import_status"),
+
+    path("api/users/bulk-import/<int:job_id>/results/",views.api_bulk_import_results,name="api_bulk_import_results"),
 ]

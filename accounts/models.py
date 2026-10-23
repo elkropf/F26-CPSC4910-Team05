@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.conf import settings
+from uuid import uuid4
 
 # Create your models here.
 
@@ -283,3 +284,41 @@ class notification(models.Model):
 
     def __str__(self):
         return f"Notification for {self.user.username} - Read: {self.is_read}"
+
+#import files need filenames
+def bulk_import_path(instance, filename):
+    return f"bulk_imports/{uuid4().hex}.txt"
+
+
+# Track an uploaded file while a background worker processes it
+class BulkImportJob(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        RUNNING = "running", "Running"
+        COMPLETED = "completed", "Completed"
+        FAILED = "failed", "Failed"
+
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="bulk_import_jobs",
+    )
+    source_file = models.FileField(upload_to=bulk_import_path)
+    result_file = models.FileField(
+        upload_to=bulk_import_path,
+        blank=True,
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+    processed_rows = models.PositiveBigIntegerField(default=0)
+    successful_rows = models.PositiveBigIntegerField(default=0)
+    failed_rows = models.PositiveBigIntegerField(default=0)
+    error_message = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+
+    organization = models.ForeignKey(Organization,on_delete=models.PROTECT,null=True,blank=True,related_name="bulk_import_jobs")

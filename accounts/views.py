@@ -11,13 +11,14 @@ from django.urls import reverse
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST
 
-from .models import (Application, ApplicationStatus, Driver, DriverOrganization, Organization, Points, User, UserType, Sponsor, pointLog,)
+from .models import (Application, ApplicationStatus, BulkImportJob, Driver, DriverOrganization, Organization, Points, User, UserType, Sponsor, pointLog,)
 from django.utils import timezone
 from datetime import date, datetime, time, timedelta
 from django.http import StreamingHttpResponse
 from .bulk_import import process_import_file
 from django.db.models import Q
 from .account_setup import send_account_setup_email
+from django.http import FileResponse
 
 
 #Read JSON / form data from a request
@@ -782,11 +783,35 @@ def api_bulk_import(request):
             status=401,
         )
 
-    if request.user.user_type not in (UserType.SPONSOR, UserType.ADMIN):
+    if request.user.user_type not in (
+        UserType.SPONSOR,
+        UserType.ADMIN,
+    ):
         return JsonResponse(
             {"error": "Only sponsors and admins can import users."},
             status=403,
         )
+
+    if request.user.user_type == UserType.SPONSOR:
+        try:
+            sponsor = request.user.sponsor
+        except Sponsor.DoesNotExist:
+            return JsonResponse(
+                {"error": "Sponsor profile not found."},
+                status=404,
+            )
+
+        if sponsor.organization_id is None:
+            return JsonResponse(
+                {"error": "Sponsor has no organization."},
+                status=400,
+            )
+
+        if not sponsor.organization.is_active:
+            return JsonResponse(
+                {"error": "Your organization is inactive."},
+                status=403,
+            )
 
     uploaded_file = request.FILES.get("file")
 
@@ -802,19 +827,34 @@ def api_bulk_import(request):
             status=400,
         )
 
-    uploader = request.user
-    base_url = request.build_absolute_uri("/")
+    job = BulkImportJob(
+        uploaded_by=request.user,
+        organization=(sponsor.organization
+                    if request.user.user_type == UserType.SPONSOR
+                    else None
+                    ),
+    )
 
-    def results():
-        try:
-            for result in process_import_file(uploaded_file, uploader, base_url):
-                yield json.dumps(result) + "\n"
-        finally:
-            uploaded_file.close()
+    try:
+        job.source_file.save(
+            uploaded_file.name,
+            uploaded_file,
+            save=False,
+        )
+        job.save()
+    except Exception:
+        #remove the stored file if creating its job failed.
+        if job.source_file.name:
+            job.source_file.delete(save=False)
+        raise
 
-    response = StreamingHttpResponse(
-        results(),
-        content_type="application/x-ndjson",
+    response = JsonResponse(
+        {
+            "job_id": job.id,
+            "status": job.status,
+            "detail": "File uploaded and queued for processing.",
+        },
+        status=202,
     )
     response["Cache-Control"] = "no-store"
     return response
@@ -1043,3 +1083,103 @@ def admin_homepage(request):
     return _role_homepage(
         request, UserType.ADMIN, "admin_home.html"
     )
+
+#show import progresse
+@require_GET
+def api_bulk_import_status(request, job_id):
+    if not request.user.is_authenticated:
+        return JsonResponse(
+            {"error": "You must be logged in."},
+            status=401,
+        )
+
+    if request.user.user_type not in (
+        UserType.SPONSOR,
+        UserType.ADMIN,
+    ):
+        return JsonResponse(
+            {"error": "Access denied."},
+            status=403,
+        )
+
+    job = BulkImportJob.objects.filter(
+        id=job_id,
+        uploaded_by=request.user,
+    ).first()
+
+    if job is None:
+        return JsonResponse(
+            {"error": "Import job not found."},
+            status=404,
+        )
+
+    response = JsonResponse({
+        "job_id": job.id,
+        "status": job.status,
+        "processed_rows": job.processed_rows,
+        "successful_rows": job.successful_rows,
+        "failed_rows": job.failed_rows,
+        "error": job.error_message,
+        "created_at": job.created_at,
+        "started_at": job.started_at,
+        "finished_at": job.finished_at,
+        "results_available": bool(job.result_file.name),
+    })
+    response["Cache-Control"] = "no-store"
+    return response
+
+#download bulk import results file
+@require_GET
+def api_bulk_import_results(request, job_id):
+    if not request.user.is_authenticated:
+        return JsonResponse(
+            {"error": "You must be logged in."},
+            status=401,
+        )
+
+    if request.user.user_type not in (
+        UserType.SPONSOR,
+        UserType.ADMIN,
+    ):
+        return JsonResponse(
+            {"error": "Access denied."},
+            status=403,
+        )
+
+    job = BulkImportJob.objects.filter(
+        id=job_id,
+        uploaded_by=request.user,
+    ).first()
+
+    if job is None:
+        return JsonResponse(
+            {"error": "Import job not found."},
+            status=404,
+        )
+
+    if job.status not in (
+        BulkImportJob.Status.COMPLETED,
+        BulkImportJob.Status.FAILED,
+    ) or not job.result_file.name:
+        return JsonResponse(
+            {"error": "Results are not available yet."},
+            status=409,
+        )
+
+    try:
+        result_file = job.result_file.open("rb")
+    except FileNotFoundError:
+        return JsonResponse(
+            {"error": "The results file could not be found."},
+            status=404,
+        )
+
+    response = FileResponse(
+        result_file,
+        as_attachment=True,
+        filename=f"bulk-import-{job.id}-results.ndjson",
+        content_type="application/x-ndjson",
+    )
+    response["Cache-Control"] = "no-store"
+    response["X-Content-Type-Options"] = "nosniff"
+    return response

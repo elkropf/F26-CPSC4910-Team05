@@ -159,3 +159,11 @@ DEFAULT_FROM_EMAIL = os.getenv(
 )
 
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
+
+#store input files securely
+MEDIA_ROOT = BASE_DIR / "private_uploads"
+
+ACCOUNT_SETUP_BASE_URL = os.getenv(
+    "ACCOUNT_SETUP_BASE_URL",
+    "http://127.0.0.1:8000",
+)
