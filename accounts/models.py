@@ -272,12 +272,39 @@ class pointLog(models.Model):
 
 #audit logs
 class auditLog(models.Model):
-    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='audit_logs')
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="audit_logs",
+    )
+    actor_role = models.CharField(max_length=20,blank=True)
     action = models.CharField(max_length=255)
+
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="audit_logs",
+    )
+
+    record_type = models.CharField(max_length=100,blank=True)
+    record_id = models.PositiveBigIntegerField(null=True,blank=True)
+    description = models.TextField(blank=True)
     timestamp = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        ordering = ["-timestamp", "-id"]
+        indexes = [
+            models.Index(
+                fields=["organization", "timestamp"],name="audit_org_time_idx"),
+            models.Index(fields=["action", "timestamp"],name="audit_action_time_idx"),
+        ]
+
     def __str__(self):
-        return f"{self.user} - {self.action} at {self.timestamp}"
+        return f"{self.action} at {self.timestamp}"
 
 #notifications
 class notification(models.Model):
