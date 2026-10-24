@@ -32,6 +32,10 @@ class Driver(models.Model):
 # sponsor organization
 class Organization(models.Model):
     organization_name = models.TextField()
+
+    #num of points = to 1 dollar
+    points_per_dollar = models.DecimalField(max_digits=12,decimal_places=4,default=100)
+
     organization_description = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
