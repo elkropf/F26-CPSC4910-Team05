@@ -3,7 +3,8 @@ from . import views
 
 app_name = "catalog"
 urlpatterns = [
-    path('', views.catalog_page, name='catalog_page'),
+    path('driver/', views.driver_catalog, name='driver_catalog'),
+    path('sponsor/', views.sponsor_catalog, name='sponsor_catalog'),
     path('search/', views.search, name='search'),
     path('addcatalog/', views.add_to_catalog, name='add_to_catalog'),
 ]

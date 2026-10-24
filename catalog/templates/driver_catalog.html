@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<body>
+    <h2>View your available catalog</h2>
+    {% for org in organizations %}
+        <h3>{{ org.organization_name }}</h3>
+        {% for p in products %}
+            {% if p.organization == org %}
+                <p>{{ p.product_name }}<br>{{ p.points_value }}</p>
+            {% endif %}
+        {% endfor %}
+    {% endfor %}
+</body>
+</html>

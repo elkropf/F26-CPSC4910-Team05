@@ -6,8 +6,50 @@ from accounts.models import *
 import http.client
 import json
 
-def catalog_page(request):
-    template = loader.get_template('catalog_page.html')
+def _request_data(request):
+    """Read a JSON object or ordinary Django form data."""
+    if request.content_type == "application/json":
+        try:
+            data = json.loads(request.body or "{}")
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return None
+
+        if not isinstance(data, dict):
+            return None
+
+        return data
+
+    return request.POST
+
+def driver_catalog(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({
+            "error": "You must be logged in to view a catalog."
+        }, status=401)
+
+    try:
+        driver = request.user.driver
+    except Driver.DoesNotExist:
+        return JsonResponse({
+            "error": "Driver profile not found."
+        }, status=404)
+
+    organizations = DriverOrganization.objects.filter(driver=driver)
+    products = []
+    for o in organizations:
+        products.append(Product.objects.filter(organization=o))
+    print(organizations)
+    print(products)
+
+    template = loader.get_template('driver_catalog.html')
+    context = {
+        'organizations': organizations,
+        'products': products,
+    }
+    return HttpResponse(template.render(context, request))
+
+def sponsor_catalog(request):
+    template = loader.get_template('sponsor_catalog.html')
     return HttpResponse(template.render())
 
 def search(request):
@@ -18,7 +60,7 @@ def search(request):
     if len(term) <= 0 or len(num) <= 0 or len(off) <= 0:
         return render(
             request,
-            "catalog_page.html",
+            "sponsor_catalog.html",
             {
                 "error_message": "Please enter a valid search, limit, and offset."
             }
@@ -26,7 +68,7 @@ def search(request):
     if int(num) <= 0 or int(off) < 0:
         return render(
             request,
-            "catalog_page.html",
+            "sponsor_catalog.html",
             {
                 "error_message": "limit must be at least 1, and offset must not be negative."
             }
@@ -69,7 +111,7 @@ def search(request):
     }
     return render(
         request,
-        "catalog_page.html",
+        "sponsor_catalog.html",
         {
             'error_message': "",
             'response': items,
@@ -116,7 +158,7 @@ def add_to_catalog(request):
             points_value=selections['price']['value']
         )
 
-    template = loader.get_template(reverse("catalog:catalog_page"))
+    template = loader.get_template(reverse("catalog:sponsor_catalog"))
     context = {
         'error_message': "Successfully added items.",
         'response': None
