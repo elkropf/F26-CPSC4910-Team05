@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.conf import settings
+from uuid import uuid4
 
 # Create your models here.
 
@@ -14,19 +15,23 @@ class UserType(models.TextChoices):
 class User(AbstractUser):
     user_type = models.CharField(max_length=20, choices=UserType.choices)
 
+    #bulk needs longer username field
+    first_name = models.TextField(blank=True)
+    last_name = models.TextField(blank=True)
+    email = models.TextField(blank=True)
+
 # Driver Class
 class Driver(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE) 
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
 
     # Sponsor connection to Driver.
-    organization = models.ForeignKey('Organization', on_delete=models.SET_NULL, null=True, blank=True, related_name = 'drivers')    
 
     def __str__(self):
         return self.user.username
-    
+
 # sponsor organization
 class Organization(models.Model):
-    organization_name = models.CharField(max_length=255)
+    organization_name = models.TextField()
     organization_description = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -34,7 +39,32 @@ class Organization(models.Model):
 
     def __str__(self):
         return self.organization_name
-    
+
+#driver organization memberships
+class DriverOrganization(models.Model):
+    driver = models.ForeignKey(
+        Driver,
+        on_delete=models.CASCADE,
+        related_name="memberships",
+    )
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name="driver_memberships",
+    )
+    joined_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["driver", "organization"],
+                name="unique_driver_organization_membership",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.driver} - {self.organization}"
+
 # Sponsor Class
 class Sponsor(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
@@ -52,7 +82,7 @@ class Sponsor(models.Model):
 
 # Admin Class
 class Admin(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE) 
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
 
     def __str__(self):
         return self.user.username
@@ -98,7 +128,7 @@ class Application(models.Model):
 
     def __str__(self):
         return f"{self.driver} - {self.organization}"
-    
+
 #sponsor chosen products
 class Product(models.Model):
     organization = models.ForeignKey(
@@ -119,7 +149,7 @@ class Product(models.Model):
     def __str__(self):
         return self.product_name
 
-    
+
 #order status options
 class OrderStatus(models.TextChoices):
     PENDING = 'pending', 'Pending'
@@ -194,7 +224,7 @@ class Points(models.Model):
             f"{self.driver} - {self.organization}: "
             f"{self.points_balance} points"
         )
-    
+
 #driver log
 class driverLog(models.Model):
     driver = models.ForeignKey(Driver, on_delete=models.CASCADE, related_name='driver_logs')
@@ -225,30 +255,17 @@ class adminLog(models.Model):
 
     def __str__(self):
         return f"{self.admin} - {self.action} at {self.timestamp}"
-    
+
 #point log
 class pointLog(models.Model):
-    driver = models.ForeignKey(
-        Driver,
-        on_delete=models.CASCADE,
-        related_name="point_logs"
-    )
-    organization = models.ForeignKey(
-        Organization,
-        on_delete=models.CASCADE,
-        related_name="point_logs"
-    )
-    changed_by = models.ForeignKey(
-        Sponsor,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="point_changes"
-    )
+    driver = models.ForeignKey(Driver, on_delete=models.CASCADE, related_name="point_logs")
+    organization = models.ForeignKey(Organization,on_delete=models.CASCADE,related_name="point_logs")
+    changed_by_user = models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.SET_NULL,null=True,blank=True,related_name="point_changes")
+
     points_changed = models.IntegerField()
-    action = models.CharField(max_length=255)
+    action = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
-    
+
 #audit logs
 class auditLog(models.Model):
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='audit_logs')
@@ -257,7 +274,7 @@ class auditLog(models.Model):
 
     def __str__(self):
         return f"{self.user} - {self.action} at {self.timestamp}"
-    
+
 #notifications
 class notification(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
@@ -267,3 +284,41 @@ class notification(models.Model):
 
     def __str__(self):
         return f"Notification for {self.user.username} - Read: {self.is_read}"
+
+#import files need filenames
+def bulk_import_path(instance, filename):
+    return f"bulk_imports/{uuid4().hex}.txt"
+
+
+# Track an uploaded file while a background worker processes it
+class BulkImportJob(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        RUNNING = "running", "Running"
+        COMPLETED = "completed", "Completed"
+        FAILED = "failed", "Failed"
+
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="bulk_import_jobs",
+    )
+    source_file = models.FileField(upload_to=bulk_import_path)
+    result_file = models.FileField(
+        upload_to=bulk_import_path,
+        blank=True,
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+    processed_rows = models.PositiveBigIntegerField(default=0)
+    successful_rows = models.PositiveBigIntegerField(default=0)
+    failed_rows = models.PositiveBigIntegerField(default=0)
+    error_message = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+
+    organization = models.ForeignKey(Organization,on_delete=models.PROTECT,null=True,blank=True,related_name="bulk_import_jobs")
