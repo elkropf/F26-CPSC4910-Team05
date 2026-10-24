@@ -6,7 +6,7 @@
 		{% csrf_token %}
         {% for item in response.itemSummaries %}
 			<input type="checkbox" name="chosen" id="chosen{{ forloop.counter }}" value="{{ item }}" checked/>
-			<label for="chosen{{ forloop.counter }}">{{ item.title }}<br>{{ item.price }}</label>
+			<label for="chosen{{ forloop.counter }}">{{ item.title }}<br>{{ item.price }}<br></label>
         {% endfor %}
 		<button type="submit">Add Selected Items to Catalog</button>
 		</form>

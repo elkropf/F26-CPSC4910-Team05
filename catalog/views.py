@@ -1,5 +1,5 @@
 from django.shortcuts import get_object_or_404, render
-from django.http import HttpResponse, Http404
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.template import loader
 from django.urls import reverse
 from accounts.models import *
@@ -116,11 +116,9 @@ def add_to_catalog(request):
             points_value=selections['price']['value']
         )
 
-    return render(
-        request,
-        "catalog_page.html",
-        {
-            'error_message': "Successfully added items.",
-            'response': None
-        }
-    )
+    template = loader.get_template(reverse("catalog:catalog_page"))
+    context = {
+        'error_message': "Successfully added items.",
+        'response': None
+    }
+    return HttpResponseRedirect(template.render(context, request))
