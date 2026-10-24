@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Set up your account</title>
+</head>
+<body>
+    <h2>Set up your account</h2>
+
+    {% if validlink %}
+        <p>Choose a password for your account.</p>
+
+        <form method="post">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit">Save password</button>
+        </form>
+    {% else %}
+        <p>This setup link is invalid or has expired.
+           Contact your sponsor or administrator for a new link.</p>
+    {% endif %}
+</body>
+</html>
