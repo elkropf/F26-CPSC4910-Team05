@@ -19,6 +19,11 @@ from .bulk_import import process_import_file
 from django.db.models import Q
 from .account_setup import send_account_setup_email
 from django.http import FileResponse
+from .audit import record_event
+from django.core.paginator import Paginator
+from .audit import can_view_audit_log, filter_audit_logs, csv_text
+from django.core.exceptions import PermissionDenied, ValidationError
+import csv
 
 
 #Read JSON / form data from a request
@@ -89,6 +94,13 @@ def api_register(request):
             user_type=UserType.DRIVER,
         )
         Driver.objects.create(user=user)
+        record_event(
+            action="user.registered",
+            actor=user,
+            record_type="user",
+            record_id=user.id,
+            description=f"New driver account created with username '{username}'."
+        )
 
     auth_login(request, user)
     return JsonResponse({"user": _user_data(user)}, status=201)
@@ -111,6 +123,13 @@ def api_login(request):
 
     user = authenticate(request, username=username, password=password)
     if user is None:
+        record_event(
+            action="user.login_failed",
+            actor=None,
+            record_type="user",
+            record_id=None,
+            description=f"Failed login attempt for username '{username}'."
+        )
         return JsonResponse(
             {"error": "Invalid username or password."},
             status=401,
@@ -120,12 +139,26 @@ def api_login(request):
         return JsonResponse({"error": "This account is inactive."}, status=403)
 
     auth_login(request, user)
+    record_event(
+        action="user.logged_in",
+        actor=user,
+        record_type="user",
+        record_id=user.id,
+        description=f"User '{username}' logged in."
+    )
     return JsonResponse({"user": _user_data(user)})
 
 #end current user session
 @require_POST
 def api_logout(request):
     auth_logout(request)
+    record_event(
+        action="user.logged_out",
+        actor=user,
+        record_type="user",
+        record_id=request.user.id,
+        description=f"User '{user.username}' logged out."
+    )
     return JsonResponse({"detail": "Logged out successfully."})
 
 #return currentuser signed in info
@@ -216,6 +249,14 @@ def api_submit_application(request):
         driver=driver,
         organization=organization,
         application_message=data.get("message", "")
+    )
+    record_event(
+        action="application.submitted",
+        actor=request.user,
+        organization=organization,
+        record_type="application",
+        record_id=application.id,
+        description=f"Driver {driver.id} ({driver.user.username}) submitted an application to organization {organization.id} ({organization.organization_name})."
     )
 
     return JsonResponse({
@@ -406,6 +447,14 @@ def api_review_application(request, application_id):
             "review_date",
             "rejection_reason",
         ])
+        record_event(
+            action="application.status_changed",
+            actor=request.user,
+            organization=sponsor.organization,
+            record_type="application",
+            record_id=application.id,
+            description=f"Application status changed to {new_status} for application {application.id}."
+        )
 
     return JsonResponse({
         "application": {
@@ -515,6 +564,15 @@ def api_change_points(request, driver_id):
             points_changed=points_changed,
             action=reason,
         )
+        record_event(
+            action="points.adjusted",
+            actor=request.user,
+            organization=sponsor.organization,
+            record_type="pointLog",
+            record_id=log.id,
+            description=f"Points changed by {points_changed} for driver {driver.id} ({driver.user.username}) in organization {sponsor.organization_id}. Reason: {reason}",
+        )
+
 
     return JsonResponse({
         "driver_id": driver.id,
@@ -842,6 +900,16 @@ def api_bulk_import(request):
             save=False,
         )
         job.save()
+
+        record_event(
+            action="bulk_import.submitted",
+            actor=request.user,
+            organization=job.organization,
+            record_type="bulk_import_job",
+            record_id=job.id,
+            description=f"Bulk import job {job.id} submitted by user {request.user.id} ({request.user.username})."
+        )
+
     except Exception:
         #remove the stored file if creating its job failed.
         if job.source_file.name:
@@ -909,7 +977,13 @@ def api_resend_account_setup(request, user_id):
             {"error": "Setup email could not be sent. Please try again later."},
             status=503,
         )
-
+    record_event(
+        action="user.account_setup_email_sent",
+        actor=request.user,
+        record_type="user",
+        record_id=user.id,
+        description=f"Account setup email resent to user {user.id} ({user.username})."
+    )
     return JsonResponse({"detail": "Setup email submitted successfully."})
 
 
@@ -990,6 +1064,13 @@ def login(request):
     user = authenticate(request, username=username, password=password)
 
     if user is None:
+        record_event(
+                    action="user.login_failed",
+                    actor=None,
+                    record_type="user",
+                    record_id=None,
+                    description=f"Failed login attempt for username '{username}'."
+                )
         return render(
             request,
             "login.html",
@@ -997,6 +1078,13 @@ def login(request):
         )
 
     auth_login(request, user)
+    record_event(
+        action="user.logged_in",
+        actor=user,
+        record_type="user",
+        record_id=user.id,
+        description=f"User '{username}' logged in.",
+    )
     homepage = {
         UserType.DRIVER: "accounts:driver_homepage",
         UserType.SPONSOR: "accounts:sponsor_homepage",
@@ -1183,3 +1271,81 @@ def api_bulk_import_results(request, job_id):
     response["Cache-Control"] = "no-store"
     response["X-Content-Type-Options"] = "nosniff"
     return response
+
+#show audit logs wiht filters and pagination
+def api_audit_logs(request):
+    try:
+        logs = can_view_audit_log(request.user)
+    except PermissionDenied:
+        return JsonResponse({"Error":" You cannot view these logs"}, status=403)
+
+    try:
+        logs = filter_audit_logs(logs, request.GET)
+    except ValueError:
+        return JsonResponse({"Error":" Check user ID and date filters"}, status=400)
+
+    paginator = Paginator(logs, 50)
+    page = paginator.get_page(request.GET.get("page", 1))
+    log_list = []
+    for log in page:
+        username = None
+        if log.user is not None:
+            username = log.user.username
+
+        log_list.append({
+            "id": log.id,
+            "username": username,
+            "actor_role": log.actor_role,
+            "action": log.action,
+            "organization_id": log.organization_id,
+            "record_type": log.record_type,
+            "record_id": log.record_id,
+            "description": log.description,
+            "timestamp": log.timestamp,
+        })
+
+        response = JsonResponse({
+            "logs": log_list,
+            "page": page.number,
+            "total_pages": paginator.num_pages,
+            "total_logs": paginator.count,
+        })
+        response["Cache-Control"] = "no-store"
+        return response
+
+#download logs matching filters
+@require_GET
+def api_audit_logs_download(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({"Error" : "You need to be logged in"}, status=401)
+    try:
+        logs = can_view_audit_log(request.user)
+        logs = filter_audit_logs(logs, request.GET)
+    except PermissionDenied:
+        return JsonResponse({"error":"Access denied"}, status=403)
+    except ValueError:
+        return JsonResponse({"error":"Check your filters"}, status=400)
+
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = 'attachment; filename="audit-logs.csv"'
+    response["Cache-Control"] = "no-store"
+
+    writer = csv.writer(response)
+    writer.writerow(["ID", "Username", "Action", "Organization ID", "Record Type", "Record ID", "Description", "Timestamp (UTC)"])
+
+    for log in logs.iterator():
+        username = ""
+        if log.user is not None:
+            username = log.user.username
+
+        writer.writerow([
+            log.id,
+            csv_text(username),
+            csv_text(log.action),
+            log.organization_id,
+            csv_text(log.record_type),
+            log.record_id,
+            csv_text(log.description),
+            log.timestamp.isoformat(),
+        ])
+        return response
