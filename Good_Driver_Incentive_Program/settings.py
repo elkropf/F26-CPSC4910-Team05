@@ -148,10 +148,22 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 # Email
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
 
-MAILERS = {
-    'default': {
-        'BACKEND': 'django.core.mail.backends.console.EmailBackend',
-    },
-}
+EMAIL_BACKEND = os.getenv(
+    "DJANGO_EMAIL_BACKEND",
+    "django.core.mail.backends.console.EmailBackend",
+)
+
+DEFAULT_FROM_EMAIL = os.getenv(
+    "DJANGO_FROM_EMAIL",
+    "noreply@example.com",
+)
 
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
+
+#store input files securely
+MEDIA_ROOT = BASE_DIR / "private_uploads"
+
+ACCOUNT_SETUP_BASE_URL = os.getenv(
+    "ACCOUNT_SETUP_BASE_URL",
+    "http://127.0.0.1:8000",
+)
