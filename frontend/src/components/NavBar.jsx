@@ -1,55 +1,52 @@
 
 import { NavLink } from "react-router-dom";
-import "./Navbar.css";
 
-const navigation = {
+const menus = {
   driver: [
-    { name: "Home", path: "/driver/home" },
-    { name: "Apply", path: "/driver/apply" },
-    { name: "Applications", path: "/driver/applications" },
-    { name: "Stores", path: "/driver/stores" },
-    { name: "About", path: "/about" },
+    ["Home", "/driver/home"],
+    ["Apply", "/driver/apply"],
+    ["Applications", "/driver/applications"],
+    ["Stores", "/driver/stores"],
   ],
-
   sponsor: [
-    { name: "Home", path: "/sponsor/home" },
-    { name: "Applications", path: "/sponsor/applications" },
-    { name: "Drivers", path: "/sponsor/drivers" },
-    { name: "Points", path: "/sponsor/points" },
-    { name: "Stores", path: "/sponsor/stores" },
-    { name: "About", path: "/about" },
+    ["Home", "/sponsor/home"],
+    ["Applications", "/sponsor/applications"],
+    ["Drivers", "/sponsor/drivers"],
+    ["Points", "/sponsor/points"],
+    ["Stores", "/sponsor/stores"],
   ],
-
   admin: [
-    { name: "Dashboard", path: "/admin/dashboard" },
-    { name: "Sponsors", path: "/admin/sponsors" },
-    { name: "Sponsor Preview", path: "/admin/sponsor-preview" },
-    { name: "About", path: "/about" },
+    ["Dashboard", "/admin/dashboard"],
+    ["Sponsors", "/admin/sponsors"],
+    ["Sponsor Preview", "/admin/sponsor-preview"],
   ],
 };
 
-function Navbar({ role }) {
-  const links = navigation[role] || [];
-
+export default function Navbar({ role, username, onLogout }) {
   return (
     <header className="navbar">
-      <h2>Good Driver Incentive Program</h2>
+      <div className="brand">Good Driver Incentive Program</div>
 
-      <nav className="nav-links">
-        {links.map((link) => (
-          <NavLink
-            key={link.path}
-            to={link.path}
-            className={({ isActive }) =>
-              isActive ? "nav-link active" : "nav-link"
-            }
-          >
-            {link.name}
-          </NavLink>
-        ))}
+      <nav>
+        {[...(menus[role] || []), ["About", "/about"]].map(
+          ([label, path]) => (
+            <NavLink
+              key={path}
+              to={path}
+              className={({ isActive }) =>
+                isActive ? "active" : ""
+              }
+            >
+              {label}
+            </NavLink>
+          )
+        )}
       </nav>
+
+      <div className="account">
+        <span>{username} ({role})</span>
+        <button onClick={onLogout}>Logout</button>
+      </div>
     </header>
   );
 }
-
-export default Navbar;
