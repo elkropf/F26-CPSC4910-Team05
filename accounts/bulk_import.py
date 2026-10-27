@@ -2,7 +2,7 @@ from uuid import uuid4
 from django.db import DataError, IntegrityError, transaction
 from .account_setup import send_account_setup_email
 from .models import Driver, DriverOrganization, Organization, Sponsor, User, UserType, Points, pointLog
-
+from .audit import record_event
 
 #report error for one row
 class ImportRowError(Exception):
@@ -213,12 +213,20 @@ def apply_import_points(driver, organization, points, reason, uploader):
         balance.points_balance = new_balance
         balance.save()
 
-        pointLog.objects.create(
+        log = pointLog.objects.create(
             driver=driver,
             organization=organization,
             changed_by_user=uploader,
             points_changed=points,
             action=reason,
+        )
+        record_event(
+            action="points.adjusted",
+            actor=uploader,
+            organization=organization,
+            record_type="point_log",
+            record_id=log.id,
+            description=f"Points adjusted by {points} for driver {driver.id} ({driver.user.username}) in organization {organization.id} ({organization.organization_name}). Reason: {reason}",
         )
 
 #process only one record and undo if fails
@@ -234,6 +242,13 @@ def process_import_row(line, uploader):
 
     if record["type"] == "O":
         organization = create_import_organization(record, uploader)
+        record_event(
+            action="organization.created",
+            actor=uploader,
+            record_type="organization",
+            record_id=organization.id,
+            description=f"Organization '{organization.organization_name}' created via bulk import by '{uploader.username}'.",
+        )
         return {
             "type": "O",
             "organization_id": organization.id,
@@ -256,8 +271,27 @@ def process_import_row(line, uploader):
         user_type=UserType.DRIVER if is_driver else UserType.SPONSOR,
     )
 
+    if created:
+        record_event(
+            action="user.created",
+            actor=uploader,
+            record_type="user",
+            record_id=user.id,
+            description=f"User '{user.username}' created via bulk import by '{uploader.username}'.",
+        )
+
     if is_driver:
-        driver, _ = add_import_driver(user, organization)
+        driver, membership_created = add_import_driver(user, organization)
+        if membership_created:
+            record_event(
+                action="driver.organization_membership_created",
+                actor=uploader,
+                organization=organization,
+                record_type="driver_organization",
+                record_id=driver.id,
+                description=f"Driver '{user.username}' added to organization '{organization.organization_name}' via bulk import by '{uploader.username}'.",
+            )
+
         apply_import_points(
             driver, organization, points, record["reason"], uploader
         )

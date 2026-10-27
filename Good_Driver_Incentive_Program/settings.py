@@ -168,3 +168,8 @@ ACCOUNT_SETUP_BASE_URL = os.getenv(
     "ACCOUNT_SETUP_BASE_URL",
     "http://127.0.0.1:8000",
 )
+
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]

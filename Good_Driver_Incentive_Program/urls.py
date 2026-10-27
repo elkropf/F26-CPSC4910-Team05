@@ -16,10 +16,13 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import include, path
+from django.urls import re_path
+from .react_frontend import react_frontend
 
 urlpatterns = [
     path('', include('accounts.urls')),
     path('admin/', admin.site.urls),
     path('api/about/', include('about.urls')),
     path('catalog/', include('catalog.urls')),
+    re_path(r"^app(?:/.*)?$", react_frontend),
 ]

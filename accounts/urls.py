@@ -69,4 +69,8 @@ urlpatterns = [
     path("api/users/bulk-import/<int:job_id>/",views.api_bulk_import_status,name="api_bulk_import_status"),
 
     path("api/users/bulk-import/<int:job_id>/results/",views.api_bulk_import_results,name="api_bulk_import_results"),
+
+    path("api/audit-logs", views.api_audit_logs, name="api_audit_logs"),
+
+    path("api/audit-logs/download/", views.api_audit_logs_download, name="api_audit_logs_download")
 ]
