@@ -8,6 +8,7 @@ const menus = {
     ["Applications", "/driver/applications"],
     ["Stores", "/driver/stores"],
   ],
+
   sponsor: [
     ["Home", "/sponsor/home"],
     ["Applications", "/sponsor/applications"],
@@ -15,6 +16,7 @@ const menus = {
     ["Points", "/sponsor/points"],
     ["Stores", "/sponsor/stores"],
   ],
+
   admin: [
     ["Dashboard", "/admin/dashboard"],
     ["Sponsors", "/admin/sponsors"],
@@ -23,30 +25,39 @@ const menus = {
 };
 
 export default function Navbar({ role, username, onLogout }) {
+  const links = role
+    ? [...(menus[role] || []), ["About", "/about"]]
+    : [
+        ["Login", "/login"],
+        ["Register", "/register"],
+      ];
+
   return (
     <header className="navbar">
-      <div className="brand">Good Driver Incentive Program</div>
+      <div className="brand">
+        Good Driver Incentive Program
+      </div>
 
       <nav>
-        {[...(menus[role] || []), ["About", "/about"]].map(
-          ([label, path]) => (
-            <NavLink
-              key={path}
-              to={path}
-              className={({ isActive }) =>
-                isActive ? "active" : ""
-              }
-            >
-              {label}
-            </NavLink>
-          )
-        )}
+        {links.map(([label, path]) => (
+          <NavLink
+            key={path}
+            to={path}
+            className={({ isActive }) =>
+              isActive ? "active" : ""
+            }
+          >
+            {label}
+          </NavLink>
+        ))}
       </nav>
 
-      <div className="account">
-        <span>{username} ({role})</span>
-        <button onClick={onLogout}>Logout</button>
-      </div>
+      {role && (
+        <div className="account">
+          <span>{username} ({role})</span>
+          <button onClick={onLogout}>Logout</button>
+        </div>
+      )}
     </header>
   );
 }

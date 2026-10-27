@@ -2,8 +2,13 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [react()],
+
+  // Use /app/ for production assets.
+  // Keep / for local development.
+  base: command === "build" ? "/app/" : "/",
+
   server: {
     proxy: {
       "/api": {
@@ -12,4 +17,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));
