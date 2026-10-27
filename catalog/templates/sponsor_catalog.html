@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<body>
+	{% if response %}
+		<form action="{% url 'catalog:add_to_catalog' %}" method="post">
+		{% csrf_token %}
+        {% for item in response.itemSummaries %}
+			<input type="checkbox" name="chosen" id="chosen{{ forloop.counter }}" value="{{ item }}" checked/>
+			<label for="chosen{{ forloop.counter }}">{{ item.title }}<br>{{ item.price }}<br></label>
+        {% endfor %}
+		<button type="submit">Add Selected Items to Catalog</button>
+		</form>
+		<a href="/catalog/sponsor"><button type="button">Search Again</button></a>
+	{% else %}
+		<h2>Search eBay Catalog</h2>
+		{% if error_message %}<strong><p>{{ error_message }}</p></strong>{% endif %}
+		<form action="{% url 'catalog:search' %}" method="get">
+			<label>Search</label>
+			<input type="text" name="search"/><br>
+			<label>Limit</label>
+			<input type="number" name="limit"/><br>
+			<label>Offset</label>
+			<input type="number" name="offset"/><br>
+			<button type="submit">Search</button>
+		</form>
+	{% endif %}
+</body>
+</html>

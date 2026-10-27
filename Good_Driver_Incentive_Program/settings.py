@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'accounts',
     'about',
+    'catalog',
 ]
 
 # Using my Personal created user model instead of the default Django User model. This is necessary to allow for the different user types (Driver, Sponsor, Admin).
