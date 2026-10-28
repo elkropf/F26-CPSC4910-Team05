@@ -48,6 +48,32 @@ def driver_catalog(request):
     }
     return HttpResponse(template.render(context, request))
 
+def driver_cart(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({
+            "error": "You must be logged in to view a cart."
+        }, status=401)
+    try:
+        driver = request.user.driver
+    except Driver.DoesNotExist:
+        return JsonResponse({
+            "error": "Driver profile not found."
+        }, status=404)
+
+    #order_items = OrderItem.objects.filter(driver)
+    try:
+        orders = Order.objects.get(driver=driver)
+        order_items = orders.items.all()
+    except Order.DoesNotExist:
+        order_items = None
+
+    template = loader.get_template('driver_cart.html')
+    context = {
+        'orders': order_items
+    }
+    print(order_items)
+    return HttpResponse(template.render(context, request))
+
 def sponsor_catalog(request):
     template = loader.get_template('sponsor_catalog.html')
     return HttpResponse(template.render())

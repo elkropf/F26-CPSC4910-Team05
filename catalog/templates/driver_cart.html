@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<body>
+    <h2>Checkout</h2>
+    {% if not orders %}
+        <p>You have no items in your checkout.</p>
+    {% else %}
+        {% for o in orders %}
+            <p>{{ o.products.product_name }}</p><br>
+            <p>{{ o.products.points_value }}</p>
+        {% endfor %}
+
+        <p>Total: (some value)</p>
+    {% endif %}
+    <a href="/catalog/driver"><button type="button">Return to Catalog</button></a>
+</body>
+</html>
