@@ -1,11 +1,12 @@
 from django.shortcuts import get_object_or_404, render
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
+from django.views.decorators.http import require_GET, require_POST
 from django.template import loader
 from django.urls import reverse
 from accounts.models import *
 import http.client
 import json
-
+    
 def _request_data(request):
     """Read a JSON object or ordinary Django form data."""
     if request.content_type == "application/json":
@@ -33,7 +34,7 @@ def driver_catalog(request):
         return JsonResponse({
             "error": "Driver profile not found."
         }, status=404)
-
+    
     organizations = DriverOrganization.objects.filter(driver=driver)
     products = []
     for o in organizations:
@@ -102,22 +103,24 @@ def search(request):
     decoded = data.decode("utf-8")
     items = json.loads(decoded)
     items2 = items['itemSummaries']
-    for x in items2:
-        print(x['title'])
+    #for x in items2:
+    #    print(x['title'])
         
     context = {
         'error_message': "",
         'response': items,
     }
+    
     return render(
         request,
-        "sponsor_catalog.html",
+        'sponsor_catalog.html',
         {
             'error_message': "",
             'response': items,
         }
     )
 
+@require_POST
 def add_to_catalog(request):
     if not request.user.is_authenticated:
         return JsonResponse({
@@ -135,27 +138,24 @@ def add_to_catalog(request):
         return JsonResponse({
             "error": "Sponsor profile not found."
         }, status=404)
-
-    data = _request_data(request)
-    if data is None:
-        return JsonResponse({
-            "error": "Invalid JSON."
-        }, status=400)
     
     try:
-        organization_id = int(data.get("organization_id"))
+        organization_id = sponsor.organization
     except (TypeError, ValueError):
         return JsonResponse({
             "error": "A valid organization ID is required."
         }, status=400)
 
-    selections = request.POST["chosen"]
+    selections = '"' + request.POST["chosen"] + '"'
+    selection_items = json.loads(selections)
+    print(type(selection_items))
+    print(selection_items)
     for x in selections:
         Product.objects.create(
             organization=organization_id,
-            product_name=selections['title'],
+            product_name=x['title'],
             product_description="",
-            points_value=selections['price']['value']
+            points_value=x['price']['value']
         )
 
     template = loader.get_template(reverse("catalog:sponsor_catalog"))

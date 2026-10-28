@@ -1138,7 +1138,8 @@ def register(request):
             user_type=UserType.SPONSOR if user_type == "Sponsor" else UserType.DRIVER,
         )
         if user_type == "Sponsor":
-            Sponsor.objects.create(user=user)
+            org = Organization.objects.get(organization_name="Test Organizzation")
+            Sponsor.objects.create(user=user, organization=org)
         else:
             Driver.objects.create(user=user)
 
