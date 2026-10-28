@@ -39,6 +39,7 @@ export default function RegisterPage({ onRegistered }) {
       username: form.username,
       email: form.email,
       password: form.password,
+      user_type: form.user_type,
     });
 
     onRegistered(result.user);

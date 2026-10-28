@@ -71,6 +71,7 @@ def api_register(request):
     username = str(data.get("username", "")).strip()
     password = str(data.get("password", ""))
     email = str(data.get("email", "")).strip()
+    user_type = str(data.get("user_type", "")).strip()
 
     if not username or not password:
         return JsonResponse(
@@ -91,15 +92,18 @@ def api_register(request):
             username=username,
             email=email,
             password=password,
-            user_type=UserType.DRIVER,
+            user_type=UserType.SPONSOR if user_type == "Sponsor" else UserType.DRIVER,
         )
-        Driver.objects.create(user=user)
+        if user_type == "Sponsor":
+            Sponsor.objects.create(user=user)
+        else:
+            Driver.objects.create(user=user)
         record_event(
             action="user.registered",
             actor=user,
             record_type="user",
             record_id=user.id,
-            description=f"New driver account created with username '{username}'."
+            description=f"New {user_type} account created with username '{username}'."
         )
 
     auth_login(request, user)
@@ -1102,8 +1106,9 @@ def register(request):
     """Legacy template registration route; the React frontend should use api_register."""
     username = request.POST.get("user_in", "").strip()
     password = request.POST.get("pass_in", "")
+    user_type = request.POST.get("user_type", "")
 
-    if not username or not password:
+    if not username or not password or not user_type:
         return render(
             request,
             "register.html",
@@ -1130,12 +1135,16 @@ def register(request):
         user = User.objects.create_user(
             username=username,
             password=password,
-            user_type=UserType.DRIVER,
+            user_type=UserType.SPONSOR if user_type == "Sponsor" else UserType.DRIVER,
         )
-        Driver.objects.create(user=user)
+        if user_type == "Sponsor":
+            Sponsor.objects.create(user=user)
+        else:
+            Driver.objects.create(user=user)
 
     auth_login(request, user)
-    return HttpResponseRedirect(reverse("accounts:driver_homepage"))
+    link = "accounts:sponsor_homepage" if user_type == "Sponsor" else "accounts:driver_homepage"
+    return HttpResponseRedirect(reverse(link))
 
 #display role specific homepage for driver, sponsor, or admin
 def _role_homepage(request, required_role, template_name):
