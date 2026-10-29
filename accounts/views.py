@@ -24,7 +24,8 @@ from django.core.paginator import Paginator
 from .audit import can_view_audit_log, filter_audit_logs, csv_text
 from django.core.exceptions import PermissionDenied, ValidationError
 import csv
-
+from .notifications import create_notification
+from .models import notification
 
 #Read JSON / form data from a request
 def _request_data(request):
@@ -459,6 +460,18 @@ def api_review_application(request, application_id):
             record_id=application.id,
             description=f"Application status changed to {new_status} for application {application.id}."
         )
+        organization_name = application.organization.organization_name
+        message = f"Your application to " f"{organization_name} " f"was {new_status}."
+
+        if new_status == ApplicationStatus.REJECTED:
+            message += f" Reason {rejection_reason}"
+
+            create_notification(
+                user=application.driver.user,
+                notification_type="application",
+                organization=application.organization,
+                message=message,
+            )
 
     return JsonResponse({
         "application": {
@@ -575,6 +588,17 @@ def api_change_points(request, driver_id):
             record_type="pointLog",
             record_id=log.id,
             description=f"Points changed by {points_changed} for driver {driver.id} ({driver.user.username}) in organization {sponsor.organization_id}. Reason: {reason}",
+        )
+        create_notification(
+            user=driver.user,
+            notification_type="points",
+            organization=sponsor.organization,
+            message=(
+                f"{sponsor.organization.organization_name} changed"
+                f"your points by {points_changed}. "
+                f"Reason: {reason}. "
+                f"New balance: {new_balance}. "
+            )
         )
 
 
@@ -990,7 +1014,42 @@ def api_resend_account_setup(request, user_id):
     )
     return JsonResponse({"detail": "Setup email submitted successfully."})
 
+#list users notifications
+@require_GET
+def api_notifications(request):
+    notifications = notification.objects.filter(user=request.user).select_related("organization")
 
+    unread_count = notifications.filter(is_read=False).count()
+
+    paginator = Paginator(notifications, 25)
+    page = paginator.get_page(request.GET.get("page",1))
+
+    notification_list = []
+
+    for item in page:
+        organization_name = None
+
+        if item.organization is not None:
+            organization_name = item.organization.organization_name
+
+        notification_list.append({
+            "id": item.id,
+            "type": item.notification_type,
+            "message": item.message,
+            "organization": organization_name,
+            "organization_id": item.organization_id,
+            "is_read": item.is_read,
+            "created_at": item.created_at,
+        })
+
+    response = JsonResponse({
+        "notifications": notification_list,
+        "unread_count": unread_count,
+        "page": page.number,
+        "total_pages": paginator.num_pages,
+    })
+    response["Cache-Control"] = "no-store"
+    return response
 
 
 # Existing server-rendered pages.

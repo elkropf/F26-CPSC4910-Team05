@@ -3,6 +3,7 @@ from django.db import DataError, IntegrityError, transaction
 from .account_setup import send_account_setup_email
 from .models import Driver, DriverOrganization, Organization, Sponsor, User, UserType, Points, pointLog
 from .audit import record_event
+from .notifications import create_notification
 
 #report error for one row
 class ImportRowError(Exception):
@@ -227,6 +228,17 @@ def apply_import_points(driver, organization, points, reason, uploader):
             record_type="point_log",
             record_id=log.id,
             description=f"Points adjusted by {points} for driver {driver.id} ({driver.user.username}) in organization {organization.id} ({organization.organization_name}). Reason: {reason}",
+        )
+        create_notification(
+            user=driver.user,
+            notification_type="points",
+            organization=organization,
+            message=(
+                f"{organization.organization_name} changed "
+                f"your points by {points}. "
+                f"Reason: {reason}. "
+                f"New balance: {new_balance}."
+            ),
         )
 
 #process only one record and undo if fails

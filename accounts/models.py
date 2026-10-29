@@ -20,6 +20,10 @@ class User(AbstractUser):
     last_name = models.TextField(blank=True)
     email = models.TextField(blank=True)
 
+    #notification preferences
+    point_notifications = models.BooleanField(default=True)
+    order_notifications = models.BooleanField(default=True)
+
 # Driver Class
 class Driver(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
@@ -309,9 +313,20 @@ class auditLog(models.Model):
 #notifications
 class notification(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
+    organization = models.ForeignKey(Organization, on_delete=models.SET_NULL, null=True, blank=True, related_name="notifications")
+    notification_type = models.CharField(max_length=30, default="general", choices=[
+        ("general", "General"),
+        ("application", "Application"),
+        ("points", "Points"),
+        ("order", "Order"),
+        ("sponsor_removed", "Sponsor removed")])
+
     message = models.TextField()
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
 
     def __str__(self):
         return f"Notification for {self.user.username} - Read: {self.is_read}"
