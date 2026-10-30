@@ -47,6 +47,47 @@ def driver_catalog(request):
     }
     return HttpResponse(template.render(context, request))
 
+@require_POST
+def add_to_cart(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({
+            "error": "You must be logged in to order."
+        }, status=401)
+    try:
+        driver = request.user.driver
+    except Driver.DoesNotExist:
+        return JsonResponse({
+            "error": "Driver profile not found."
+        }, status=404)
+        
+    product = request.POST["order"]
+    true_product = Product.objects.filter(product_name=product)[0]
+    
+    try:
+        current_order = Order.objects.get(driver=driver).filter(order_status=OrderStatus.PENDING)
+        OrderItem.objects.create(
+            order=current_order,
+            product=true_product,
+            quantity=1,
+            points_cost=true_product.points_value,
+        )
+        current_order.total_points = F("total_points") + true_product.points_value
+        current_order.save()
+    except Order.DoesNotExist:
+        new_order = Order.objects.create(
+            driver=driver,
+            organization=true_product.organization,
+            total_points=true_product.points_value,
+        )
+        OrderItem.objects.create(
+            order=new_order,
+            product=true_product,
+            quantity=1,
+            points_cost=true_product.points_value,
+        )
+        
+    return HttpResponseRedirect(reverse("catalog:driver_catalog"))
+
 def driver_cart(request):
     if not request.user.is_authenticated:
         return JsonResponse({
@@ -60,14 +101,15 @@ def driver_cart(request):
         }, status=404)
 
     try:
-        orders = Order.objects.get(driver=driver)
-        order_items = orders.items.all()
+        order = Order.objects.get(driver=driver)
+        order_items = order.items.all()
     except Order.DoesNotExist:
         order_items = None
         
     template = loader.get_template('driver_cart.html')
     context = {
-        'orders': order_items
+        'order': order,
+        'items': order_items,
     }
     print(order_items)
     return HttpResponse(template.render(context, request))
