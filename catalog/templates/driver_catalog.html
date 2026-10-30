@@ -3,16 +3,18 @@
 <body>
     <h2>View your available catalog</h2>
     {% if not products %}
-        <p>No products available. Please contact your sponsor if you think this is an issue.</p>
+      <p>No products available. Please contact your sponsor if you think this is an issue.</p>
     {% else %}
-        {% for org in organizations %}
-            <h3>{{ org.organization_name }}</h3>
-            {% for p in products %}
-                {% if p.organization == org %}
-                    <p>{{ p.product_name }}<br>{{ p.points_value }}</p>
+      {% for org in organizations %}
+          <h3>{{ org.organization_name }}</h3>
+          {% for p in products %}
+              {% for p2 in p %}
+                {% if p2.organization == org %}
+                    <p>{{ p2.product_name }}<br>{{ p2.points_value }} points</p>
                 {% endif %}
-            {% endfor %}
-        {% endfor %}
+              {% endfor %}
+          {% endfor %}
+      {% endfor %}
     {% endif %}
     <a href="/catalog/driver/order"><button type="button">Checkout</button></a>
 </body>

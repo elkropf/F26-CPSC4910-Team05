@@ -4,10 +4,11 @@
 	{% if response %}
 		<form action="{% url 'catalog:add_to_catalog' %}" method="post">
 		{% csrf_token %}
+		<select id="chosen" name="chosen">
         {% for item in response.itemSummaries %}
-			<input type="checkbox" name="chosen" id="chosen{{ forloop.counter }}" value="{{ item }}" checked/>
-			<label for="chosen{{ forloop.counter }}">{{ item.title }}<br>{{ item.price }}<br></label>
+			  <option value="{{ item }}">{{ item.title }}<br>{{ item.price }}</option>
         {% endfor %}
+		</select>
 		<button type="submit">Add Selected Items to Catalog</button>
 		</form>
 		<a href="/catalog/sponsor"><button type="button">Search Again</button></a>

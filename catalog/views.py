@@ -1,11 +1,12 @@
 from django.shortcuts import get_object_or_404, render
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
+from django.views.decorators.http import require_GET, require_POST
 from django.template import loader
 from django.urls import reverse
 from accounts.models import *
 import http.client
 import json
-
+    
 def _request_data(request):
     """Read a JSON object or ordinary Django form data."""
     if request.content_type == "application/json":
@@ -33,13 +34,11 @@ def driver_catalog(request):
         return JsonResponse({
             "error": "Driver profile not found."
         }, status=404)
-
-    organizations = DriverOrganization.objects.filter(driver=driver)
+    
+    organizations = Organization.objects.all()
     products = []
     for o in organizations:
-        products.append(Product.objects.filter(organization=o))
-    print(organizations)
-    print(products)
+        products.append(o.products.filter(organization_id=o))
 
     template = loader.get_template('driver_catalog.html')
     context = {
@@ -60,13 +59,12 @@ def driver_cart(request):
             "error": "Driver profile not found."
         }, status=404)
 
-    #order_items = OrderItem.objects.filter(driver)
     try:
         orders = Order.objects.get(driver=driver)
         order_items = orders.items.all()
     except Order.DoesNotExist:
         order_items = None
-
+        
     template = loader.get_template('driver_cart.html')
     context = {
         'orders': order_items
@@ -128,22 +126,22 @@ def search(request):
     decoded = data.decode("utf-8")
     items = json.loads(decoded)
     items2 = items['itemSummaries']
-    for x in items2:
-        print(x['title'])
         
     context = {
         'error_message': "",
         'response': items,
     }
+    
     return render(
         request,
-        "sponsor_catalog.html",
+        'sponsor_catalog.html',
         {
             'error_message': "",
             'response': items,
         }
     )
 
+@require_POST
 def add_to_catalog(request):
     if not request.user.is_authenticated:
         return JsonResponse({
@@ -161,32 +159,26 @@ def add_to_catalog(request):
         return JsonResponse({
             "error": "Sponsor profile not found."
         }, status=404)
-
-    data = _request_data(request)
-    if data is None:
-        return JsonResponse({
-            "error": "Invalid JSON."
-        }, status=400)
     
     try:
-        organization_id = int(data.get("organization_id"))
+        organization_id = sponsor.organization
     except (TypeError, ValueError):
         return JsonResponse({
             "error": "A valid organization ID is required."
         }, status=400)
 
     selections = request.POST["chosen"]
-    for x in selections:
-        Product.objects.create(
-            organization=organization_id,
-            product_name=selections['title'],
-            product_description="",
-            points_value=selections['price']['value']
-        )
+    adjusted = selections.replace("'", '"').replace('False', 'false').replace('True', 'true')
+    selection_items = json.loads(adjusted)
+    Product.objects.create(
+        organization=organization_id,
+        product_name=selection_items['title'],
+        product_description="",
+        points_value=round(float(selection_items['price']['value']) * (int)(organization_id.points_per_dollar))
+    )
 
-    template = loader.get_template(reverse("catalog:sponsor_catalog"))
     context = {
         'error_message': "Successfully added items.",
         'response': None
     }
-    return HttpResponseRedirect(template.render(context, request))
+    return HttpResponseRedirect(reverse("catalog:sponsor_catalog", query=context))
