@@ -6,21 +6,6 @@ from django.urls import reverse
 from accounts.models import *
 import http.client
 import json
-    
-def _request_data(request):
-    """Read a JSON object or ordinary Django form data."""
-    if request.content_type == "application/json":
-        try:
-            data = json.loads(request.body or "{}")
-        except (json.JSONDecodeError, UnicodeDecodeError):
-            return None
-
-        if not isinstance(data, dict):
-            return None
-
-        return data
-
-    return request.POST
 
 def driver_catalog(request):
     if not request.user.is_authenticated:
@@ -85,8 +70,10 @@ def add_to_cart(request):
             quantity=1,
             points_cost=true_product.points_value,
         )
-        
-    return HttpResponseRedirect(reverse("catalog:driver_catalog"))
+    context = {
+        "message": f"Successfully added {product} to cart."
+    }
+    return HttpResponseRedirect(reverse("catalog:driver_catalog", query=context))
 
 def driver_cart(request):
     if not request.user.is_authenticated:
@@ -102,7 +89,7 @@ def driver_cart(request):
 
     try:
         order = Order.objects.get(driver=driver)
-        order_items = order.items.all()
+        order_items = order.items.all() if order.order_status == OrderStatus.PENDING else None
     except Order.DoesNotExist:
         order_items = None
         
@@ -114,6 +101,44 @@ def driver_cart(request):
     print(order_items)
     return HttpResponse(template.render(context, request))
 
+@require_POST
+def place_order(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({
+            "error": "You must be logged in to place an order."
+        }, status=401)
+    try:
+        driver = request.user.driver
+    except Driver.DoesNotExist:
+        return JsonResponse({
+            "error": "Driver profile not found."
+        }, status=404)
+    
+    try:
+        order = Order.objects.get(driver=driver)
+    except Order.DoesNotExist:
+        context = {
+            "message": "Cannot place an order which does not exist."
+        }
+        return HttpResponseRedirect(reverse("catalog:driver_cart", query=context))
+        
+    points = Points.objects.get(driver=driver)
+    if order.total_points > points.points_balance:
+        context = {
+            "message": "You do not have enough points to place this order."
+        }
+        return HttpResponseRedirect(reverse("catalog:driver_cart", query=context))
+    
+    order.order_status = OrderStatus.PROCESSING
+    points.points_balance = f("points_balance") - order.total_points
+    points.save()
+    
+    context = {
+        "message": f"Successfully placed order #{order.order_id}."
+    }
+    return HttpResponseRedirect(reverse("catalog:driver_cart", query=context))
+
+###################################################
 def sponsor_catalog(request):
     template = loader.get_template('sponsor_catalog.html')
     return HttpResponse(template.render())

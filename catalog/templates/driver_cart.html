@@ -2,13 +2,18 @@
 <html>
 <body>
     <h2>Checkout</h2>
+    {% if message %}<p><strong>{{ message }}</strong></p>{% endif %}
     {% if not order %}
         <p>You have no items in your checkout.</p>
     {% else %}
+        <form action="{% url 'catalog:place_order' %}" method="post">
+        {% csrf_token %}
         {% for o in items %}
             <p>{{ o.product.product_name }}: {{ o.product.points_value }} points</p><br>
         {% endfor %}
         <p>Total: {{ order.total_points }} points</p>
+        <button type="submit">Place Order</button>
+        </form>
     {% endif %}
     <a href="/catalog/driver"><button type="button">Return to Catalog</button></a>
 </body>
