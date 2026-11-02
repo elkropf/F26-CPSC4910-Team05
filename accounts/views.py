@@ -466,12 +466,12 @@ def api_review_application(request, application_id):
         if new_status == ApplicationStatus.REJECTED:
             message += f" Reason {rejection_reason}"
 
-            create_notification(
-                user=application.driver.user,
-                notification_type="application",
-                organization=application.organization,
-                message=message,
-            )
+        create_notification(
+            user=application.driver.user,
+            notification_type="application",
+            organization=application.organization,
+            message=message,
+        )
 
     return JsonResponse({
         "application": {
@@ -1017,6 +1017,12 @@ def api_resend_account_setup(request, user_id):
 #list users notifications
 @require_GET
 def api_notifications(request):
+    if not request.user.is_authenticated:
+        return JsonResponse(
+            {"error": "You must be logged in."},
+            status=401,
+        )
+
     notifications = notification.objects.filter(user=request.user).select_related("organization")
 
     unread_count = notifications.filter(is_read=False).count()
@@ -1051,6 +1057,80 @@ def api_notifications(request):
     response["Cache-Control"] = "no-store"
     return response
 
+#signed-in user's notification preferences.
+@require_GET
+def api_notification_preferences(request):
+    if not request.user.is_authenticated:
+        return JsonResponse(
+            {"error": "You must be logged in."},
+            status=401,
+        )
+
+    return JsonResponse({
+        "point_notifications": request.user.point_notifications,
+        "order_notifications": request.user.order_notifications,
+    })
+
+#update signed-in user's notification preferences.
+@require_POST
+def api_update_notification_preferences(request):
+    if not request.user.is_authenticated:
+        return JsonResponse(
+            {"error": "You must be logged in."},
+            status=401,
+        )
+
+    data = _request_data(request)
+
+    if data is None:
+        return JsonResponse({"error": "Invalid JSON."}, status=400)
+
+    fields = ["point_notifications", "order_notifications"]
+    changes = {}
+
+    for field in fields:
+        if field in data:
+            if not isinstance(data[field], bool):
+                return JsonResponse(
+                    {"error": f"{field} must be true or false."},
+                    status=400,
+                )
+
+            changes[field] = data[field]
+
+    if not changes:
+        return JsonResponse(
+            {"error": "Provide a point or order notification preference."},
+            status=400,
+        )
+
+    for field, value in changes.items():
+        setattr(request.user, field, value)
+
+    request.user.save(update_fields=list(changes))
+
+    return JsonResponse({
+        "point_notifications": request.user.point_notifications,
+        "order_notifications": request.user.order_notifications,
+    })
+
+@require_POST
+def api_notification_read(request, notification_id):
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "You must be logged in."}, status=401)
+
+    alert = notification.objects.filter(
+        id=notification_id,
+        user=request.user,
+    ).first()
+
+    if alert is None:
+        return JsonResponse({"error": "Notification not found."}, status=404)
+
+    alert.is_read = True
+    alert.save(update_fields=["is_read"])
+
+    return JsonResponse({"id": alert.id, "is_read": alert.is_read})
 
 # Existing server-rendered pages.
 

@@ -4,7 +4,7 @@ from .models import notification
 def create_notification(*, user, message, notification_type="general", organization=None):
 
     if notification_type == "points":
-        if not user.order_notifications:
+        if not user.point_notifications:
             return None
 
     if notification_type == "order":
