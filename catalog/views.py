@@ -130,13 +130,43 @@ def place_order(request):
         return HttpResponseRedirect(reverse("catalog:driver_cart", query=context))
     
     order.order_status = OrderStatus.PROCESSING
-    points.points_balance = f("points_balance") - order.total_points
+    points.points_balance = F("points_balance") - order.total_points
     points.save()
     
     context = {
-        "message": f"Successfully placed order #{order.order_id}."
+        "message": f"Successfully placed order #{order.id}."
     }
     return HttpResponseRedirect(reverse("catalog:driver_cart", query=context))
+
+def order_status(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({
+            "error": "You must be logged in to place an order."
+        }, status=401)
+    try:
+        driver = request.user.driver
+    except Driver.DoesNotExist:
+        return JsonResponse({
+            "error": "Driver profile not found."
+        }, status=404)
+
+    orders = Order.objects.filter(driver=driver)
+    if len(orders) == 0:
+        orders = None
+        order_items = None
+    else:
+        order_items = []
+        for o in orders:
+            items = o.items.all()
+            for i in items:
+                order_items.append(i)
+
+    template = loader.get_template('driver_orderstatus.html')
+    context = {
+        'order': orders,
+        'order_item': order_items,
+    }
+    return HttpResponse(template.render(context, request))
 
 ###################################################
 def sponsor_catalog(request):

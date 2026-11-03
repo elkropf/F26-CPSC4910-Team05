@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<body>
+    <h2>View Order Status</h2>
+    {% if not order %}
+        <p><strong>You have no prior or current orders.</strong></p>
+    {% else %}
+        {% for o in order %}
+            <h3>Order #{{ o.id }}</h3>
+            {% for item in order_item %}
+                {% if item.order == o %}
+                    <p>{{ item.product.product_name }}: {{ item.product.points_value }} points</p><br>
+                {% endif %}
+            {% endfor %}
+            <h3>Order status: {{ o.order_status }}</h3>
+        {% endfor %}
+    {% endif %}
+    <a href="/catalog/driver"><button type="button">Return to Catalog</button></a>
+</body>
+</html>
