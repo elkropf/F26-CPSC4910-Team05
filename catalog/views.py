@@ -168,6 +168,34 @@ def order_status(request):
     }
     return HttpResponse(template.render(context, request))
 
+def cancel_order(request, order_id):
+    if not request.user.is_authenticated:
+        return JsonResponse({
+            "error": "You must be logged in to cancel an order."
+        }, status=401)
+    try:
+        driver = request.user.driver
+    except Driver.DoesNotExist:
+        return JsonResponse({
+            "error": "Driver profile not found."
+        }, status=404)
+    
+    try:
+        order = Order.objects.get(pk=order_id)
+        if order.driver != driver:
+            return JsonResponse({
+                "error": "You cannot cancel someone else's order."
+            }, status=401)
+    except Order.DoesNotExist:
+        return JsonResponse({
+            "error": "Order not found."
+        }, status=404)
+    
+    # HTML already checks if the current status is one that can be cancelled
+    order.order_status = OrderStatus.CANCELLED
+    order.save()
+    return HttpResponseRedirect(reverse("catalog:order_status"))
+
 ###################################################
 def sponsor_catalog(request):
     template = loader.get_template('sponsor_catalog.html')

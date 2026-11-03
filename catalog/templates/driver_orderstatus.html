@@ -13,8 +13,11 @@
                 {% endif %}
             {% endfor %}
             <h3>Order status: {{ o.order_status }}</h3>
+            {% if o.order_status == 'pending' or o.order_status == 'approved' %}
+              <a href="{% url 'catalog:cancel_order' o.id %}"><button>Cancel Order #{{ o.id }}</button></a>
+            {% endif %}
         {% endfor %}
     {% endif %}
-    <a href="/catalog/driver"><button type="button">Return to Catalog</button></a>
+    <br><a href="/catalog/driver"><button type="button">Return to Catalog</button></a>
 </body>
 </html>

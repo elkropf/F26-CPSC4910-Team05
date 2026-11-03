@@ -8,6 +8,7 @@ urlpatterns = [
     path('driver/order/', views.driver_cart, name='driver_cart'),
     path('driver/orderstatus/', views.order_status, name='order_status'),
     path('driver/placeorder/', views.place_order, name='place_order'),
+    path('driver/cancel/<int:order_id>/', views.cancel_order, name='cancel_order'),
     path('sponsor/', views.sponsor_catalog, name='sponsor_catalog'),
     path('search/', views.search, name='search'),
     path('addcatalog/', views.add_to_catalog, name='add_to_catalog'),
