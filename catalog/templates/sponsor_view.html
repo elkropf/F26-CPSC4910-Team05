@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<body>
+    <h2>View Organization Catalog</h2>
+    {% if not products %}
+        <p>No products currently available in your organization's catalog.</p>
+    {% else %}
+        {% for p in products %}
+            <p>{{ p.product_name }}<br>{{ p.points_value }} points</p>
+        {% endfor %}
+    {% endif %}
+    <a href="{% url 'catalog:search_page' %}"><button type="button">Add New Items</button></a>
+    <a href="{% url 'accounts:sponsor_homepage' %}"><button type="button">Return to Homepage</button></a>
+</body>
+</html>

@@ -4,6 +4,6 @@
     <h2>Welcome, {{ username }}</h2>
     <h3>Check the status of your drivers:</h3>
 
-    <a href="/catalog/sponsor"><button type="button">Adjust Catalog</button></a>
+    <a href="{% url 'catalog:sponsor_catalog' %}"><button type="button">Adjust Catalog</button></a>
 </body>
 </html>

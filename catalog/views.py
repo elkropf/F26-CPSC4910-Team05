@@ -198,6 +198,35 @@ def cancel_order(request, order_id):
 
 ###################################################
 def sponsor_catalog(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({
+            "error": "You must be logged in to view the catalog."
+        }, status=401)
+
+    if request.user.user_type != UserType.SPONSOR:
+        return JsonResponse({
+            "error": "Only sponsors can change an organization's catalog."
+        }, status=403)
+
+    try:
+        sponsor = request.user.sponsor
+    except Sponsor.DoesNotExist:
+        return JsonResponse({
+            "error": "Sponsor profile not found."
+        }, status=404)
+
+    organization = sponsor.organization
+    catalog = organization.products.all()
+    if len(catalog) == 0:
+        catalog = None
+
+    template = loader.get_template('sponsor_view.html')
+    context = {
+        'products': catalog
+    }
+    return HttpResponse(template.render(context, request))
+
+def search_page(request):
     template = loader.get_template('sponsor_catalog.html')
     return HttpResponse(template.render())
 
@@ -270,7 +299,7 @@ def search(request):
 def add_to_catalog(request):
     if not request.user.is_authenticated:
         return JsonResponse({
-            "error": "You must be logged in to apply."
+            "error": "You must be logged in to change the catalog."
         }, status=401)
 
     if request.user.user_type != UserType.SPONSOR:
@@ -306,4 +335,4 @@ def add_to_catalog(request):
         'error_message': "Successfully added items.",
         'response': None
     }
-    return HttpResponseRedirect(reverse("catalog:sponsor_catalog", query=context))
+    return HttpResponseRedirect(reverse("catalog:search_page", query=context))
