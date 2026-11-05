@@ -4,14 +4,14 @@
 	{% if response %}
 		<form action="{% url 'catalog:add_to_catalog' %}" method="post">
 		{% csrf_token %}
-		<select id="chosen" name="chosen" multiple>
+		<select id="chosen" name="chosen">
         {% for item in response.itemSummaries %}
-			<option value="{{ item }}">{{ item.title }}<br>{{ item.price }}</option>
+			  <option value="{{ item }}">{{ item.title }}<br>{{ item.price }}</option>
         {% endfor %}
 		</select>
 		<button type="submit">Add Selected Items to Catalog</button>
 		</form>
-		<a href="/catalog/sponsor"><button type="button">Search Again</button></a>
+		<a href="{% url 'catalog:search_page' %}"><button type="button">Search Again</button></a>
 	{% else %}
 		<h2>Search eBay Catalog</h2>
 		{% if error_message %}<strong><p>{{ error_message }}</p></strong>{% endif %}
@@ -24,6 +24,7 @@
 			<input type="number" name="offset"/><br>
 			<button type="submit">Search</button>
 		</form>
+		<a href="{% url 'catalog:sponsor_catalog' %}"><button type="button">Return to Catalog</button></a>
 	{% endif %}
 </body>
 </html>
