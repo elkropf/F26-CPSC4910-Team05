@@ -1,3 +1,4 @@
+from django.db.models import F
 from django.shortcuts import get_object_or_404, render
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.views.decorators.http import require_GET, require_POST
@@ -49,7 +50,7 @@ def add_to_cart(request):
     true_product = Product.objects.filter(product_name=product)[0]
     
     try:
-        current_order = Order.objects.get(driver=driver).filter(order_status=OrderStatus.PENDING)
+        current_order = Order.objects.filter(order_status=OrderStatus.PENDING).get(driver=driver)
         OrderItem.objects.create(
             order=current_order,
             product=true_product,
@@ -88,9 +89,12 @@ def driver_cart(request):
         }, status=404)
 
     try:
-        order = Order.objects.get(driver=driver)
-        order_items = order.items.all() if order.order_status == OrderStatus.PENDING else None
+        order = Order.objects.get(driver=driver, order_status=OrderStatus.PENDING)
+        order_items = order.items.all()
+        if len(order_items) == 0:
+            order = None
     except Order.DoesNotExist:
+        order = None
         order_items = None
         
     template = loader.get_template('driver_cart.html')
@@ -135,6 +139,38 @@ def place_order(request):
     
     context = {
         "message": f"Successfully placed order #{order.id}."
+    }
+    return HttpResponseRedirect(reverse("catalog:driver_cart", query=context))
+
+def remove_from_cart(request, item_id):
+    if not request.user.is_authenticated:
+        return JsonResponse({
+            "error": "You must be logged in to remove an item."
+        }, status=401)
+    try:
+        driver = request.user.driver
+    except Driver.DoesNotExist:
+        return JsonResponse({
+            "error": "Driver profile not found."
+        }, status=404)
+
+    try:
+        item = OrderItem.objects.get(pk=item_id)
+        if item.order.driver != driver:
+            return JsonResponse({
+                "error": "You cannot remove an item from someone else's order."
+            }, status=401)
+    except OrderItem.DoesNotExist:
+        return JsonResponse({
+            "error": "Item not found."
+        }, status=404)
+    
+    item.order.total_points = F("total_points") - item.points_cost
+    item.order.save()
+    item.delete()
+
+    context = {
+        'message': "Successfully removed item from your cart."
     }
     return HttpResponseRedirect(reverse("catalog:driver_cart", query=context))
 
