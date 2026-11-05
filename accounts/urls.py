@@ -32,6 +32,12 @@ urlpatterns = [
     #sponsor point tracking
     path("api/points/sponsor/",views.api_sponsor_point_tracking,name="api_sponsor_point_tracking",),
 
+    #notifications
+    path("api/notifications/", views.api_notifications, name="api_notifications"),
+    path("api/notifications/preferences/", views.api_notification_preferences, name="api_notification_preferences"),
+    path("api/notifications/preferences/update/", views.api_update_notification_preferences, name="api_update_notification_preferences"),
+    path("api/notifications/<int:notification_id>/read/", views.api_notification_read, name="api_notification_read"),
+
     #driver points balance
     path("api/points/mine/", views.api_my_points, name="api_my_points",),
     path("api/points/history/", views.api_my_point_history, name="api_my_point_history",),

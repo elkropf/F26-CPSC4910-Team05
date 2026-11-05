@@ -24,7 +24,8 @@ from django.core.paginator import Paginator
 from .audit import can_view_audit_log, filter_audit_logs, csv_text
 from django.core.exceptions import PermissionDenied, ValidationError
 import csv
-
+from .notifications import create_notification
+from .models import notification
 
 #Read JSON / form data from a request
 def _request_data(request):
@@ -71,6 +72,7 @@ def api_register(request):
     username = str(data.get("username", "")).strip()
     password = str(data.get("password", ""))
     email = str(data.get("email", "")).strip()
+    user_type = str(data.get("user_type", "")).strip()
 
     if not username or not password:
         return JsonResponse(
@@ -91,15 +93,18 @@ def api_register(request):
             username=username,
             email=email,
             password=password,
-            user_type=UserType.DRIVER,
+            user_type=UserType.SPONSOR if user_type == "Sponsor" else UserType.DRIVER,
         )
-        Driver.objects.create(user=user)
+        if user_type == "Sponsor":
+            Sponsor.objects.create(user=user)
+        else:
+            Driver.objects.create(user=user)
         record_event(
             action="user.registered",
             actor=user,
             record_type="user",
             record_id=user.id,
-            description=f"New driver account created with username '{username}'."
+            description=f"New {user_type} account created with username '{username}'."
         )
 
     auth_login(request, user)
@@ -455,6 +460,18 @@ def api_review_application(request, application_id):
             record_id=application.id,
             description=f"Application status changed to {new_status} for application {application.id}."
         )
+        organization_name = application.organization.organization_name
+        message = f"Your application to " f"{organization_name} " f"was {new_status}."
+
+        if new_status == ApplicationStatus.REJECTED:
+            message += f" Reason {rejection_reason}"
+
+        create_notification(
+            user=application.driver.user,
+            notification_type="application",
+            organization=application.organization,
+            message=message,
+        )
 
     return JsonResponse({
         "application": {
@@ -571,6 +588,17 @@ def api_change_points(request, driver_id):
             record_type="pointLog",
             record_id=log.id,
             description=f"Points changed by {points_changed} for driver {driver.id} ({driver.user.username}) in organization {sponsor.organization_id}. Reason: {reason}",
+        )
+        create_notification(
+            user=driver.user,
+            notification_type="points",
+            organization=sponsor.organization,
+            message=(
+                f"{sponsor.organization.organization_name} changed"
+                f"your points by {points_changed}. "
+                f"Reason: {reason}. "
+                f"New balance: {new_balance}. "
+            )
         )
 
 
@@ -986,8 +1014,123 @@ def api_resend_account_setup(request, user_id):
     )
     return JsonResponse({"detail": "Setup email submitted successfully."})
 
+#list users notifications
+@require_GET
+def api_notifications(request):
+    if not request.user.is_authenticated:
+        return JsonResponse(
+            {"error": "You must be logged in."},
+            status=401,
+        )
 
+    notifications = notification.objects.filter(user=request.user).select_related("organization")
 
+    unread_count = notifications.filter(is_read=False).count()
+
+    paginator = Paginator(notifications, 25)
+    page = paginator.get_page(request.GET.get("page",1))
+
+    notification_list = []
+
+    for item in page:
+        organization_name = None
+
+        if item.organization is not None:
+            organization_name = item.organization.organization_name
+
+        notification_list.append({
+            "id": item.id,
+            "type": item.notification_type,
+            "message": item.message,
+            "organization": organization_name,
+            "organization_id": item.organization_id,
+            "is_read": item.is_read,
+            "created_at": item.created_at,
+        })
+
+    response = JsonResponse({
+        "notifications": notification_list,
+        "unread_count": unread_count,
+        "page": page.number,
+        "total_pages": paginator.num_pages,
+    })
+    response["Cache-Control"] = "no-store"
+    return response
+
+#signed-in user's notification preferences.
+@require_GET
+def api_notification_preferences(request):
+    if not request.user.is_authenticated:
+        return JsonResponse(
+            {"error": "You must be logged in."},
+            status=401,
+        )
+
+    return JsonResponse({
+        "point_notifications": request.user.point_notifications,
+        "order_notifications": request.user.order_notifications,
+    })
+
+#update signed-in user's notification preferences.
+@require_POST
+def api_update_notification_preferences(request):
+    if not request.user.is_authenticated:
+        return JsonResponse(
+            {"error": "You must be logged in."},
+            status=401,
+        )
+
+    data = _request_data(request)
+
+    if data is None:
+        return JsonResponse({"error": "Invalid JSON."}, status=400)
+
+    fields = ["point_notifications", "order_notifications"]
+    changes = {}
+
+    for field in fields:
+        if field in data:
+            if not isinstance(data[field], bool):
+                return JsonResponse(
+                    {"error": f"{field} must be true or false."},
+                    status=400,
+                )
+
+            changes[field] = data[field]
+
+    if not changes:
+        return JsonResponse(
+            {"error": "Provide a point or order notification preference."},
+            status=400,
+        )
+
+    for field, value in changes.items():
+        setattr(request.user, field, value)
+
+    request.user.save(update_fields=list(changes))
+
+    return JsonResponse({
+        "point_notifications": request.user.point_notifications,
+        "order_notifications": request.user.order_notifications,
+    })
+
+@require_POST
+def api_notification_read(request, notification_id):
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "You must be logged in."}, status=401)
+
+    alert = notification.objects.filter(
+        id=notification_id,
+        user=request.user,
+    ).first()
+
+    if alert is None:
+        return JsonResponse({"error": "Notification not found."}, status=404)
+
+    alert.is_read = True
+    alert.save(update_fields=["is_read"])
+
+    return JsonResponse({"id": alert.id, "is_read": alert.is_read})
 
 # Existing server-rendered pages.
 
@@ -1102,8 +1245,9 @@ def register(request):
     """Legacy template registration route; the React frontend should use api_register."""
     username = request.POST.get("user_in", "").strip()
     password = request.POST.get("pass_in", "")
+    user_type = request.POST.get("user_type", "")
 
-    if not username or not password:
+    if not username or not password or not user_type:
         return render(
             request,
             "register.html",
@@ -1130,12 +1274,17 @@ def register(request):
         user = User.objects.create_user(
             username=username,
             password=password,
-            user_type=UserType.DRIVER,
+            user_type=UserType.SPONSOR if user_type == "Sponsor" else UserType.DRIVER,
         )
-        Driver.objects.create(user=user)
+        if user_type == "Sponsor":
+            org = Organization.objects.get(organization_name="Test Organizzation")
+            Sponsor.objects.create(user=user, organization=org)
+        else:
+            Driver.objects.create(user=user)
 
     auth_login(request, user)
-    return HttpResponseRedirect(reverse("accounts:driver_homepage"))
+    link = "accounts:sponsor_homepage" if user_type == "Sponsor" else "accounts:driver_homepage"
+    return HttpResponseRedirect(reverse(link))
 
 #display role specific homepage for driver, sponsor, or admin
 def _role_homepage(request, required_role, template_name):

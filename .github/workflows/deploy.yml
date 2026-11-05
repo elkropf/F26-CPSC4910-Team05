@@ -1,0 +1,140 @@
+
+name: Team05 Build and Deploy
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download repository
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build React
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Check React build
+        run: |
+          test -f frontend/dist/index.html
+          test -d frontend/dist/assets
+
+      - name: Create deployment ZIP
+        run: |
+          python3 - <<'PY'
+          import os
+          import subprocess
+          import zipfile
+          from pathlib import Path
+
+          files = subprocess.check_output(
+              ["git", "ls-files", "-z"]
+          ).split(b"\0")
+
+          with zipfile.ZipFile(
+              "deploy.zip", "w", zipfile.ZIP_DEFLATED
+          ) as bundle:
+              for item in files:
+                  if not item:
+                      continue
+
+                  name = os.fsdecode(item)
+                  path = Path(name)
+
+                  if not path.is_file():
+                      continue
+                  if any(part in {
+                      "venv", "node_modules", "__pycache__",
+                      "private_uploads"
+                  } for part in path.parts):
+                      continue
+                  if path.name == ".env" or path.name.startswith(".env."):
+                      continue
+                  if path.suffix == ".sqlite3":
+                      continue
+
+                  bundle.write(path, path.as_posix())
+
+              for path in Path("frontend/dist").rglob("*"):
+                  if path.is_file():
+                      bundle.write(path, path.as_posix())
+          PY
+
+      - name: Save deployment ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: team05-deployment
+          path: deploy.zip
+
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+
+    concurrency:
+      group: team05-beanstalk
+      cancel-in-progress: false
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Download deployment ZIP
+        uses: actions/download-artifact@v4
+        with:
+          name: team05-deployment
+
+      - name: Authenticate with AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::274815321855:role/Team05-GitHub-Beanstalk-Deploy
+          aws-region: us-east-1
+
+      - name: Deploy to Elastic Beanstalk
+        env:
+          EB_APP: Team05-Good_Driver_Incentive
+          EB_ENV: Team05-GoodDriverIncentive-env
+          S3_BUCKET: elasticbeanstalk-us-east-1-274815321855
+          S3_PREFIX: Team05-Good_Driver_Incentive
+        run: |
+          VERSION="team05-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          S3_KEY="${S3_PREFIX}/${VERSION}.zip"
+
+          aws sts get-caller-identity
+
+          aws s3 cp deploy.zip "s3://${S3_BUCKET}/${S3_KEY}"
+
+          aws elasticbeanstalk create-application-version \
+            --application-name "$EB_APP" \
+            --version-label "$VERSION" \
+            --source-bundle "S3Bucket=$S3_BUCKET,S3Key=$S3_KEY"
+
+          aws elasticbeanstalk update-environment \
+            --environment-name "$EB_ENV" \
+            --version-label "$VERSION"
+
+          aws elasticbeanstalk wait environment-updated \
+            --environment-name "$EB_ENV"
+
+          aws elasticbeanstalk describe-environments \
+            --environment-names "$EB_ENV" \
+            --query 'Environments[0].[Status,Health,VersionLabel]' \
+            --output table
