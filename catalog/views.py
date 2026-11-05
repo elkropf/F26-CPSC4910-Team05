@@ -372,3 +372,46 @@ def add_to_catalog(request):
         'response': None
     }
     return HttpResponseRedirect(reverse("catalog:search_page", query=context))
+
+def remove_from_catalog(request, item_id):
+    if not request.user.is_authenticated:
+        return JsonResponse({
+            "error": "You must be logged in to change the catalog."
+        }, status=401)
+
+    if request.user.user_type != UserType.SPONSOR:
+        return JsonResponse({
+            "error": "Only sponsors can change an organization's catalog."
+        }, status=403)
+
+    try:
+        sponsor = request.user.sponsor
+    except Sponsor.DoesNotExist:
+        return JsonResponse({
+            "error": "Sponsor profile not found."
+        }, status=404)
+    
+    try:
+        organization_id = sponsor.organization
+    except (TypeError, ValueError):
+        return JsonResponse({
+            "error": "A valid organization ID is required."
+        }, status=400)
+
+    try:
+        product = Product.objects.get(pk=item_id)
+    except Product.DoesNotExist:
+        return JsonResponse({
+            "error": "Item not found."
+        }, status=404)
+
+    # Ensure there aren't any phantom items left in driver carts
+    items = OrderItem.objects.filter(product=product)
+    for i in items:
+        i.order.total_points = F("total_points") - i.points_cost
+        i.order.save()
+        i.delete()
+    # Now delete the actual product
+    product.delete()
+
+    return HttpResponseRedirect(reverse("catalog:sponsor_catalog"))

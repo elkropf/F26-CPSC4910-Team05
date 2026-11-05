@@ -7,6 +7,7 @@
     {% else %}
         {% for p in products %}
             <p>{{ p.product_name }}<br>{{ p.points_value }} points</p>
+            <a href="{% url 'catalog:remove_from_catalog' p.id %}"><button type="button">Remove Item from Catalog</button></a><br>
         {% endfor %}
     {% endif %}
     <a href="{% url 'catalog:search_page' %}"><button type="button">Add New Items</button></a>
