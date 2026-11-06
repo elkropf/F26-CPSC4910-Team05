@@ -155,15 +155,21 @@ def api_login(request):
 
 #end current user session
 @require_POST
+#end current user session
+@require_POST
 def api_logout(request):
+    user = request.user
+
     auth_logout(request)
+
     record_event(
         action="user.logged_out",
         actor=user,
         record_type="user",
-        record_id=request.user.id,
+        record_id=user.id,
         description=f"User '{user.username}' logged out."
     )
+
     return JsonResponse({"detail": "Logged out successfully."})
 
 #return currentuser signed in info

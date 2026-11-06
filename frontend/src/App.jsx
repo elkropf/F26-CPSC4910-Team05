@@ -1,6 +1,8 @@
 import AppLayout from "./layouts/AppLayout";
 import Navbar from "./components/NavBar";
 import RegisterPage from "./pages/RegisterPage.jsx";
+import CatalogPage from "./pages/CatalogPage";
+import SponsorEbayPage from "./pages/SponsorEbayPage";
 
 import { useEffect, useState } from "react";
 import {
@@ -218,12 +220,7 @@ function AppContent() {
             />
             <Route
               path="/driver/stores"
-              element={
-                <FeaturePage
-                  title="My Sponsor Stores"
-                  description="Display stores belonging to the driver's approved sponsors."
-                />
-              }
+              element={<CatalogPage role="driver" />}
             />
           </Route>
 
@@ -251,12 +248,7 @@ function AppContent() {
             />
             <Route
               path="/sponsor/stores"
-              element={
-                <FeaturePage
-                  title="Sponsor Stores"
-                  description="Display and manage this sponsor's incentive stores."
-                />
-              }
+              element={<SponsorEbayPage />}
             />
           </Route>
 

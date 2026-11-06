@@ -24,5 +24,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/about/', include('about.urls')),
     path('catalog/', include('catalog.urls')),
+    path("api/catalog/", include("catalog.api_urls")),
     re_path(r"^app(?:/.*)?$", react_frontend),
 ]
