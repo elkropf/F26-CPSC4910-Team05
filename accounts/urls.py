@@ -53,6 +53,8 @@ urlpatterns = [
     path("loggingin/", views.login, name="login"),
     path("register/", views.register_page, name="register_page"),
     path("registering/", views.register, name="register"),
+    path("passwordchange/", views.password_change_page, name="password_change_page"),
+    path("changepassword/", views.change_password, name="change_password"),
 
     #existing home pages
     path("driverhome/", views.driver_homepage, name="driver_homepage"),
