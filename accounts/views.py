@@ -1,6 +1,7 @@
 import json
 
 from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
+from django.contrib.auth.hashers import make_password
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -96,7 +97,8 @@ def api_register(request):
             user_type=UserType.SPONSOR if user_type == "Sponsor" else UserType.DRIVER,
         )
         if user_type == "Sponsor":
-            Sponsor.objects.create(user=user)
+            org = Organization.objects.get(organization_name="Test Organization")
+            Sponsor.objects.create(user=user, organization=org)
         else:
             Driver.objects.create(user=user)
         record_event(
@@ -1283,7 +1285,7 @@ def register(request):
             user_type=UserType.SPONSOR if user_type == "Sponsor" else UserType.DRIVER,
         )
         if user_type == "Sponsor":
-            org = Organization.objects.get(organization_name="Test Organizzation")
+            org = Organization.objects.get(organization_name="Test Organization")
             Sponsor.objects.create(user=user, organization=org)
         else:
             Driver.objects.create(user=user)
@@ -1291,6 +1293,54 @@ def register(request):
     auth_login(request, user)
     link = "accounts:sponsor_homepage" if user_type == "Sponsor" else "accounts:driver_homepage"
     return HttpResponseRedirect(reverse(link))
+
+def password_change_page(request):
+    return render(request, "password_change.html")
+
+@require_POST
+def change_password(request):
+    username = request.POST.get("user_in", "").strip()
+    password = request.POST.get("pass_in", "")
+    password_conf = request.POST.get("pass_confirm", "")
+
+    if not username or not password or not password_conf:
+        return render(
+            request,
+            "password_change.html",
+            {"error_message": "Username and password are required."},
+        )
+
+    if not User.objects.filter(username__iexact=username).exists():
+        return render(
+            request,
+            "password_change.html",
+            {"error_message": "This username does not exist."},
+        )
+    
+    if password != password_conf:
+        return render(
+            request,
+            "password_change.html",
+            {"error_message": "Passwords do not match."},
+        )
+
+    try:
+        validate_password(password)
+    except ValidationError as error:
+        return render(
+            request,
+            "password_change.html",
+            {"error_message": " ".join(error.messages)},
+        )
+
+    user = User.objects.get(username__iexact=username)
+    user.password = make_password(password)
+    user.save()
+    
+    context = {
+        "success": 1,
+    }
+    return HttpResponseRedirect(reverse("accounts:password_change_page", query=context))
 
 #display role specific homepage for driver, sponsor, or admin
 def _role_homepage(request, required_role, template_name):
