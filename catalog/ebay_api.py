@@ -7,6 +7,7 @@ from decimal import Decimal, InvalidOperation
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
+import base64
 
 from django.core import signing
 from django.http import JsonResponse
@@ -36,7 +37,31 @@ def sponsor_for(request):
 
     return sponsor, None
 
+def get_ebay_token():
+    client_id = os.getenv("EBAY_CLIENT_ID")
+    client_secret = os.getenv("EBAY_CLIENT_SECRET")
 
+    credentials = base64.b64encode(
+        f"{client_id}:{client_secret}".encode()
+    ).decode()
+
+    data = urlencode({
+        "grant_type": "client_credentials",
+        "scope": "https://api.ebay.com/oauth/api_scope"
+    }).encode()
+
+    req = Request(
+        "https://api.ebay.com/identity/v1/oauth2/token",
+        data=data,
+        headers={
+            "Authorization": f"Basic {credentials}",
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
+        method="POST"
+    )
+
+    with urlopen(req, timeout=15) as response:
+        return json.load(response)["access_token"]
 @require_GET
 def ebay_search(request):
     sponsor, error = sponsor_for(request)
@@ -48,11 +73,11 @@ def ebay_search(request):
     if not q:
         return JsonResponse({"error": "Enter a search term."}, status=400)
 
-    access_token = os.getenv("CATALOGUE_AUTH_KEY", "").strip()
+    access_token = get_ebay_token()
 
     if not access_token:
         return JsonResponse({
-            "error": "catalogue_auth_key is missing in .env."
+            "error": "CATALOG_AUTH_KEY is missing in .env."
         }, status=503)
 
     if access_token.lower().startswith("bearer "):

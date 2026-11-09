@@ -1,8 +1,10 @@
+
 import AppLayout from "./layouts/AppLayout";
 import Navbar from "./components/NavBar";
 import RegisterPage from "./pages/RegisterPage.jsx";
 import CatalogPage from "./pages/CatalogPage";
 import SponsorEbayPage from "./pages/SponsorEbayPage";
+import EbayCatalog from "./EbayCatalog";
 
 import { useEffect, useState } from "react";
 import {
@@ -66,7 +68,9 @@ function LoginPage({ onLogin }) {
       const user = normalizeUser(data);
 
       if (!user) {
-        throw new Error("Login succeeded, but the user role was not returned.");
+        throw new Error(
+          "Login succeeded, but the user role was not returned."
+        );
       }
 
       onLogin(user);
@@ -107,6 +111,7 @@ function LoginPage({ onLogin }) {
         </form>
 
         {error && <p className="error">{error}</p>}
+
         <p>
           Don't have an account?{" "}
           <NavLink to="/register">Register here</NavLink>
@@ -131,7 +136,12 @@ function ProtectedLayout({ user, logout }) {
 
 function RoleGuard({ user, required }) {
   if (user?.user_type !== required) {
-    return <Navigate to={homePath(user?.user_type)} replace />;
+    return (
+      <Navigate
+        to={homePath(user?.user_type)}
+        replace
+      />
+    );
   }
 
   return <Outlet />;
@@ -160,7 +170,9 @@ function AppContent() {
     }
   }
 
-  if (loading) return <p className="loading">Loading...</p>;
+  if (loading) {
+    return <p className="loading">Loading...</p>;
+  }
 
   const role = user?.user_type;
 
@@ -183,6 +195,7 @@ function AppContent() {
               : <LoginPage onLogin={setUser} />
           }
         />
+
         <Route
           path="/register"
           element={
@@ -193,22 +206,43 @@ function AppContent() {
         />
 
         <Route
-          element={<ProtectedLayout user={user} logout={logout} />}
+          element={
+            <ProtectedLayout
+              user={user}
+              logout={logout}
+            />
+          }
         >
           <Route
             path="/"
-            element={<Navigate to={homePath(role)} replace />}
+            element={
+              <Navigate
+                to={homePath(role)}
+                replace
+              />
+            }
           />
 
-          <Route element={<RoleGuard user={user} required="driver" />}>
+          {/* DRIVER ROUTES */}
+
+          <Route
+            element={
+              <RoleGuard
+                user={user}
+                required="driver"
+              />
+            }
+          >
             <Route
               path="/driver/home"
               element={<HomePage user={user} />}
             />
+
             <Route
               path="/driver/apply"
               element={<ApplyPage />}
             />
+
             <Route
               path="/driver/applications"
               element={
@@ -218,21 +252,33 @@ function AppContent() {
                 />
               }
             />
+
             <Route
               path="/driver/stores"
               element={<CatalogPage role="driver" />}
             />
           </Route>
 
-          <Route element={<RoleGuard user={user} required="sponsor" />}>
+          {/* SPONSOR ROUTES */}
+
+          <Route
+            element={
+              <RoleGuard
+                user={user}
+                required="sponsor"
+              />
+            }
+          >
             <Route
               path="/sponsor/home"
               element={<HomePage user={user} />}
             />
+
             <Route
               path="/sponsor/applications"
               element={<PendingApplications />}
             />
+
             <Route
               path="/sponsor/drivers"
               element={
@@ -242,21 +288,40 @@ function AppContent() {
                 />
               }
             />
+
             <Route
               path="/sponsor/points"
               element={<PointsPage />}
             />
+
+            {/* Existing sponsor catalog + new eBay search */}
+
             <Route
               path="/sponsor/stores"
-              element={<SponsorEbayPage />}
+              element={
+                <>
+                  <SponsorEbayPage />
+                  <EbayCatalog />
+                </>
+              }
             />
           </Route>
 
-          <Route element={<RoleGuard user={user} required="admin" />}>
+          {/* ADMIN ROUTES */}
+
+          <Route
+            element={
+              <RoleGuard
+                user={user}
+                required="admin"
+              />
+            }
+          >
             <Route
               path="/admin/dashboard"
               element={<HomePage user={user} />}
             />
+
             <Route
               path="/admin/sponsors"
               element={
@@ -266,6 +331,7 @@ function AppContent() {
                 />
               }
             />
+
             <Route
               path="/admin/sponsor-preview"
               element={
@@ -277,12 +343,20 @@ function AppContent() {
             />
           </Route>
 
-          <Route path="/about" element={<AboutPage />} />
+          <Route
+            path="/about"
+            element={<AboutPage />}
+          />
         </Route>
 
         <Route
           path="*"
-          element={<Navigate to={user ? homePath(role) : "/login"} replace />}
+          element={
+            <Navigate
+              to={user ? homePath(role) : "/login"}
+              replace
+            />
+          }
         />
       </Routes>
     </>
