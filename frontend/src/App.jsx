@@ -26,6 +26,7 @@ import {
   PendingApplications,
   PointsPage,
   FeaturePage,
+  SponsorDriversPage,
 } from "./pages/RolePages";
 
 import "./App.css";
@@ -281,12 +282,7 @@ function AppContent() {
 
             <Route
               path="/sponsor/drivers"
-              element={
-                <FeaturePage
-                  title="Sponsored Drivers"
-                  description="Display the drivers connected to this sponsor."
-                />
-              }
+              element={<SponsorDriversPage />}
             />
 
             <Route

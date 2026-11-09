@@ -367,3 +367,67 @@ export function FeaturePage({ title, description }) {
     </section>
   );
 }
+
+
+export function SponsorDriversPage() {
+  const {
+    data: drivers,
+    error,
+    loading,
+    refresh
+  } = useRecords("/api/points/sponsor/");
+
+  return (
+    <section>
+      <div className="page-heading">
+        <h1>Sponsored Drivers</h1>
+        <button onClick={refresh}>Refresh</button>
+      </div>
+
+      <p>Total Drivers: {drivers.length}</p>
+
+      {loading && <p>Loading drivers...</p>}
+      {error && <p className="error">{error}</p>}
+
+      {!loading && !error && (
+        <div className="card">
+          {drivers.length === 0 ? (
+            <p>No sponsored drivers found.</p>
+          ) : (
+            <div className="drivers-table-wrap">
+              <table className="drivers-table">
+                <thead>
+                  <tr>
+                    <th>Driver Name</th>
+                    <th>Username</th>
+                    <th>Points</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {drivers.map(driver => (
+                    <tr key={driver.driver_id}>
+                      <td>{driver.name}</td>
+                      <td>{driver.username}</td>
+                      <td>
+                        {Number(
+                          driver.points_balance ?? 0
+                        ).toLocaleString()}
+                      </td>
+                      <td>
+                        <Link to="/sponsor/points">
+                          Manage Points
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}

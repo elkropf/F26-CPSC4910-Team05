@@ -222,3 +222,32 @@ button.danger {
 .login-card p {
   margin-top: 18px;
 }
+
+
+.drivers-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.drivers-table {
+  width: 100%;
+  min-width: 550px;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.drivers-table th,
+.drivers-table td {
+  padding: 15px;
+  border-bottom: 1px solid #ddd;
+}
+
+.drivers-table th {
+  background-color: #f3f5f9;
+  font-weight: bold;
+}
+
+.drivers-table tr:hover {
+  background-color: #f8f9fa;
+}
+
