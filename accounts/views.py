@@ -11,6 +11,8 @@ from django.template import loader
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.http import require_http_methods
+from django.core.validators import validate_email
 
 from .models import (Application, ApplicationStatus, BulkImportJob, Driver, DriverOrganization, Organization, Points, User, UserType, Sponsor, pointLog,)
 from django.utils import timezone
@@ -186,6 +188,67 @@ def api_current_user(request):
             "user": _user_data(request.user),
         }
     )
+
+@csrf_protect
+@require_http_methods(["GET", "POST"])
+def api_profile(request):
+    if not request.user.is_authenticated:
+        return JsonResponse(
+            {"error": "Please log in."},
+            status=401
+        )
+
+    user = request.user
+
+    if request.method == "POST":
+        data = _request_data(request)
+
+        if data is None:
+            return JsonResponse(
+                {"error": "Invalid data."},
+                status=400
+            )
+
+        first_name = str(data.get("first_name", user.first_name)).strip()
+        last_name = str(data.get("last_name", user.last_name)).strip()
+        email = str(data.get("email", user.email)).strip()
+
+        if len(first_name) > 150 or len(last_name) > 150:
+            return JsonResponse(
+                {"error": "Name is too long."},
+                status=400
+            )
+
+        if len(email) > 254:
+            return JsonResponse(
+                {"error": "Email is too long."},
+                status=400
+            )
+
+        if email:
+            try:
+                validate_email(email)
+            except ValidationError:
+                return JsonResponse(
+                    {"error": "Enter a valid email."},
+                    status=400
+                )
+
+        user.first_name = first_name
+        user.last_name = last_name
+        user.email = email
+
+        user.save(update_fields=[
+            "first_name", "last_name", "email"
+        ])
+
+    return JsonResponse({
+        "username": user.username,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "email": user.email
+    })
+
 
 #list active sponsor organizations
 @require_GET
