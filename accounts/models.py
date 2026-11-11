@@ -84,6 +84,11 @@ class Sponsor(models.Model):
         null=True,
         blank=True
     )
+    fee_percentage = models.DecimalField(
+    max_digits=5,
+    decimal_places=2,
+    default=1.00
+)
 
     def __str__(self):
         return self.user.username

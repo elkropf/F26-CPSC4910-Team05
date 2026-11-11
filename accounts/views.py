@@ -158,15 +158,22 @@ def api_login(request):
 #end current user session
 @require_POST
 def api_logout(request):
+    actor = request.user if request.user.is_authenticated else None
+
+    if actor is not None:
+        record_event(
+            action="user.logged_out",
+            actor=actor,
+            record_type="user",
+            record_id=actor.id,
+            description=f"User '{actor.username}' logged out."
+        )
+
     auth_logout(request)
-    record_event(
-        action="user.logged_out",
-        actor=user,
-        record_type="user",
-        record_id=request.user.id,
-        description=f"User '{user.username}' logged out."
-    )
-    return JsonResponse({"detail": "Logged out successfully."})
+
+    return JsonResponse({
+        "detail": "Logged out successfully."
+    })
 
 #return currentuser signed in info
 @require_GET
@@ -437,6 +444,14 @@ def api_review_application(request, application_id):
             driver = Driver.objects.select_for_update().get(
                 id=application.driver_id
             )
+            if DriverOrganization.objects.filter(
+                driver=driver
+            ).exclude(
+                organization_id=application.organization_id
+            ).exists():
+                return JsonResponse({
+                    "error": "Driver already belongs to another sponsor."
+                }, status=409)
             DriverOrganization.objects.get_or_create(
                 driver=driver,
                 organization_id=application.organization_id,

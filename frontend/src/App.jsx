@@ -1,8 +1,16 @@
+
 import AppLayout from "./layouts/AppLayout";
 import Navbar from "./components/NavBar";
 import RegisterPage from "./pages/RegisterPage.jsx";
 
+import CatalogPage from "./pages/CatalogPage";
+import SponsorEbayPage from "./pages/SponsorEbayPage";
+import EbayCatalog from "./EbayCatalog";
+import AdminPanel from "./pages/AdminPanel";
+import AboutPage from "./pages/AboutPage";
+
 import { useEffect, useState } from "react";
+
 import {
   BrowserRouter,
   Routes,
@@ -13,7 +21,6 @@ import {
 } from "react-router-dom";
 
 import { apiRequest } from "./api";
-import AboutPage from "./pages/AboutPage";
 
 import {
   HomePage,
@@ -25,6 +32,10 @@ import {
 } from "./pages/RolePages";
 
 import "./App.css";
+
+// =====================================
+// USER ROLE ROUTING
+// =====================================
 
 function homePath(role) {
   if (role === "driver") return "/driver/home";
@@ -42,6 +53,10 @@ function normalizeUser(data) {
 
   return user;
 }
+
+// =====================================
+// LOGIN PAGE
+// =====================================
 
 function LoginPage({ onLogin }) {
   const [username, setUsername] = useState("");
@@ -64,7 +79,9 @@ function LoginPage({ onLogin }) {
       const user = normalizeUser(data);
 
       if (!user) {
-        throw new Error("Login succeeded, but the user role was not returned.");
+        throw new Error(
+          "Login succeeded, but the user role was not returned."
+        );
       }
 
       onLogin(user);
@@ -83,18 +100,20 @@ function LoginPage({ onLogin }) {
 
         <form onSubmit={submit}>
           <label>Username</label>
+
           <input
             value={username}
-            onChange={e => setUsername(e.target.value)}
+            onChange={(e) => setUsername(e.target.value)}
             autoComplete="username"
             required
           />
 
           <label>Password</label>
+
           <input
             type="password"
             value={password}
-            onChange={e => setPassword(e.target.value)}
+            onChange={(e) => setPassword(e.target.value)}
             autoComplete="current-password"
             required
           />
@@ -105,6 +124,7 @@ function LoginPage({ onLogin }) {
         </form>
 
         {error && <p className="error">{error}</p>}
+
         <p>
           Don't have an account?{" "}
           <NavLink to="/register">Register here</NavLink>
@@ -113,6 +133,10 @@ function LoginPage({ onLogin }) {
     </div>
   );
 }
+
+// =====================================
+// PROTECTED LAYOUT
+// =====================================
 
 function ProtectedLayout({ user, logout }) {
   if (!user) {
@@ -127,13 +151,26 @@ function ProtectedLayout({ user, logout }) {
   );
 }
 
+// =====================================
+// ROLE GUARD
+// =====================================
+
 function RoleGuard({ user, required }) {
   if (user?.user_type !== required) {
-    return <Navigate to={homePath(user?.user_type)} replace />;
+    return (
+      <Navigate
+        to={homePath(user?.user_type)}
+        replace
+      />
+    );
   }
 
   return <Outlet />;
 }
+
+// =====================================
+// MAIN APP CONTENT
+// =====================================
 
 function AppContent() {
   const [user, setUser] = useState(null);
@@ -142,7 +179,7 @@ function AppContent() {
 
   useEffect(() => {
     apiRequest("/api/auth/me/")
-      .then(data => setUser(normalizeUser(data)))
+      .then((data) => setUser(normalizeUser(data)))
       .catch(() => setUser(null))
       .finally(() => setLoading(false));
   }, []);
@@ -158,7 +195,9 @@ function AppContent() {
     }
   }
 
-  if (loading) return <p className="loading">Loading...</p>;
+  if (loading) {
+    return <p className="loading">Loading...</p>;
+  }
 
   const role = user?.user_type;
 
@@ -173,40 +212,89 @@ function AppContent() {
       )}
 
       <Routes>
+
+        {/* =====================================
+            LOGIN
+        ===================================== */}
+
         <Route
           path="/login"
           element={
-            user
-              ? <Navigate to={homePath(role)} replace />
-              : <LoginPage onLogin={setUser} />
+            user ? (
+              <Navigate
+                to={homePath(role)}
+                replace
+              />
+            ) : (
+              <LoginPage onLogin={setUser} />
+            )
           }
         />
+
+        {/* =====================================
+            REGISTER
+        ===================================== */}
+
         <Route
           path="/register"
           element={
-            user
-              ? <Navigate to={homePath(role)} replace />
-              : <RegisterPage onRegistered={setUser} />
+            user ? (
+              <Navigate
+                to={homePath(role)}
+                replace
+              />
+            ) : (
+              <RegisterPage onRegistered={setUser} />
+            )
           }
         />
 
+        {/* =====================================
+            PROTECTED ROUTES
+        ===================================== */}
+
         <Route
-          element={<ProtectedLayout user={user} logout={logout} />}
+          element={
+            <ProtectedLayout
+              user={user}
+              logout={logout}
+            />
+          }
         >
+
           <Route
             path="/"
-            element={<Navigate to={homePath(role)} replace />}
+            element={
+              <Navigate
+                to={homePath(role)}
+                replace
+              />
+            }
           />
 
-          <Route element={<RoleGuard user={user} required="driver" />}>
+          {/* =====================================
+              DRIVER ROUTES
+          ===================================== */}
+
+          <Route
+            element={
+              <RoleGuard
+                user={user}
+                required="driver"
+              />
+            }
+          >
+
             <Route
               path="/driver/home"
               element={<HomePage user={user} />}
             />
+
             <Route
               path="/driver/apply"
               element={<ApplyPage />}
             />
+
             <Route
               path="/driver/applications"
               element={
@@ -216,26 +304,40 @@ function AppContent() {
                 />
               }
             />
+
+            {/* DRIVER CATALOG - RESTORED */}
             <Route
               path="/driver/stores"
               element={
-                <FeaturePage
-                  title="My Sponsor Stores"
-                  description="Display stores belonging to the driver's approved sponsors."
-                />
+                <CatalogPage role="driver" />
               }
             />
+
           </Route>
 
-          <Route element={<RoleGuard user={user} required="sponsor" />}>
+          {/* =====================================
+              SPONSOR ROUTES
+          ===================================== */}
+
+          <Route
+            element={
+              <RoleGuard
+                user={user}
+                required="sponsor"
+              />
+            }
+          >
+
             <Route
               path="/sponsor/home"
               element={<HomePage user={user} />}
             />
+
             <Route
               path="/sponsor/applications"
               element={<PendingApplications />}
             />
+
             <Route
               path="/sponsor/drivers"
               element={
@@ -245,57 +347,131 @@ function AppContent() {
                 />
               }
             />
+
             <Route
               path="/sponsor/points"
               element={<PointsPage />}
             />
+
+            {/* SPONSOR CATALOG - RESTORED */}
             <Route
               path="/sponsor/stores"
               element={
-                <FeaturePage
-                  title="Sponsor Stores"
-                  description="Display and manage this sponsor's incentive stores."
-                />
+                <>
+                  <SponsorEbayPage />
+                  <EbayCatalog />
+                </>
               }
             />
+
+            {/* SPONSOR EBAY SEARCH */}
+            <Route
+              path="/sponsor/ebay"
+              element={<SponsorEbayPage />}
+            />
+
           </Route>
 
-          <Route element={<RoleGuard user={user} required="admin" />}>
+          {/* =====================================
+              ADMIN ROUTES
+          ===================================== */}
+
+          <Route
+            element={
+              <RoleGuard
+                user={user}
+                required="admin"
+              />
+            }
+          >
+
+            {/* ADMIN DASHBOARD */}
             <Route
               path="/admin/dashboard"
-              element={<HomePage user={user} />}
+              element={
+                <AdminPanel view="dashboard" />
+              }
             />
+
+            {/* SPONSOR MANAGEMENT */}
             <Route
               path="/admin/sponsors"
               element={
-                <FeaturePage
-                  title="Manage Sponsors"
-                  description="View and update sponsor accounts and permissions."
-                />
+                <AdminPanel view="sponsors" />
               }
             />
+
+            {/* DRIVER MANAGEMENT */}
+            <Route
+              path="/admin/drivers"
+              element={
+                <AdminPanel view="drivers" />
+              }
+            />
+
+            {/* ACCOUNT PREVIEW */}
             <Route
               path="/admin/sponsor-preview"
               element={
-                <FeaturePage
-                  title="Sponsor Preview"
-                  description="View the application from a sponsor's perspective."
-                />
+                <AdminPanel view="preview" />
               }
             />
+
+            {/* ADMIN ACCOUNT MANAGEMENT */}
+            <Route
+              path="/admin/admins"
+              element={
+                <AdminPanel view="admins" />
+              }
+            />
+
+            {/* ADMIN REPORTS */}
+            <Route
+              path="/admin/reports"
+              element={
+                <AdminPanel view="reports" />
+              }
+            />
+
           </Route>
 
-          <Route path="/about" element={<AboutPage />} />
+          {/* =====================================
+              ABOUT PAGE
+          ===================================== */}
+
+          <Route
+            path="/about"
+            element={<AboutPage />}
+          />
+
         </Route>
+
+        {/* =====================================
+            FALLBACK ROUTE
+        ===================================== */}
 
         <Route
           path="*"
-          element={<Navigate to={user ? homePath(role) : "/login"} replace />}
+          element={
+            <Navigate
+              to={
+                user
+                  ? homePath(role)
+                  : "/login"
+              }
+              replace
+            />
+          }
         />
+
       </Routes>
     </>
   );
 }
+
+// =====================================
+// MAIN APPLICATION
+// =====================================
 
 export default function App() {
   return (

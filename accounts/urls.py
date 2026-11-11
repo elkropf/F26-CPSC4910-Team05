@@ -1,67 +1,144 @@
-from django.urls import path
+
+from django.urls import path, reverse_lazy
+from django.contrib.auth.views import PasswordResetConfirmView
 
 from . import views
-
-from django.contrib.auth.views import PasswordResetConfirmView
-from django.urls import reverse_lazy
+from . import admin_api
 
 app_name = "accounts"
 
 urlpatterns = [
-    #JSON authentication API for React
+    # JSON authentication API for React
     path("api/auth/csrf/", views.api_csrf, name="api_csrf"),
     path("api/auth/register/", views.api_register, name="api_register"),
     path("api/auth/login/", views.api_login, name="api_login"),
     path("api/auth/logout/", views.api_logout, name="api_logout"),
     path("api/auth/me/", views.api_current_user, name="api_current_user"),
 
-    #organizations
-    path("api/organizations/", views.api_organizations, name="api_organizations"),
+    # Organizations
+    path(
+        "api/organizations/",
+        views.api_organizations,
+        name="api_organizations",
+    ),
 
-    #bulk-load organizations, drivers, and sponsor users
-    path("api/users/bulk-import/",views.api_bulk_import,name="api_bulk_import",),
+    # Bulk import organizations, drivers, and sponsors
+    path(
+        "api/users/bulk-import/",
+        views.api_bulk_import,
+        name="api_bulk_import",
+    ),
 
-    #submit a driver application through the React API
-    path("api/applications/submit/", views.api_submit_application, name="api_submit_application"),
-    path("api/applications/mine/",views.api_my_applications,name="api_my_applications"),
-    path("api/applications/pending/",views.api_sponsor_applications,name="api_sponsor_applications"),
-    path("api/applications/<int:application_id>/review/",views.api_review_application,name="api_review_application"),
+    # Driver applications
+    path(
+        "api/applications/submit/",
+        views.api_submit_application,
+        name="api_submit_application",
+    ),
+    path(
+        "api/applications/mine/",
+        views.api_my_applications,
+        name="api_my_applications",
+    ),
+    path(
+        "api/applications/pending/",
+        views.api_sponsor_applications,
+        name="api_sponsor_applications",
+    ),
+    path(
+        "api/applications/<int:application_id>/review/",
+        views.api_review_application,
+        name="api_review_application",
+    ),
 
-    #sponsor point changes
-    path("api/drivers/<int:driver_id>/points/change/", views.api_change_points, name="api_change_points",),
-    #sponsor point tracking
-    path("api/points/sponsor/",views.api_sponsor_point_tracking,name="api_sponsor_point_tracking",),
+    # Sponsor point changes
+    path(
+        "api/drivers/<int:driver_id>/points/change/",
+        views.api_change_points,
+        name="api_change_points",
+    ),
 
-    #notifications
-    path("api/notifications/", views.api_notifications, name="api_notifications"),
-    path("api/notifications/preferences/", views.api_notification_preferences, name="api_notification_preferences"),
-    path("api/notifications/preferences/update/", views.api_update_notification_preferences, name="api_update_notification_preferences"),
-    path("api/notifications/<int:notification_id>/read/", views.api_notification_read, name="api_notification_read"),
+    # Sponsor point tracking
+    path(
+        "api/points/sponsor/",
+        views.api_sponsor_point_tracking,
+        name="api_sponsor_point_tracking",
+    ),
 
-    #driver points balance
-    path("api/points/mine/", views.api_my_points, name="api_my_points",),
-    path("api/points/history/", views.api_my_point_history, name="api_my_point_history",),
+    # Notifications
+    path(
+        "api/notifications/",
+        views.api_notifications,
+        name="api_notifications",
+    ),
+    path(
+        "api/notifications/preferences/",
+        views.api_notification_preferences,
+        name="api_notification_preferences",
+    ),
+    path(
+        "api/notifications/preferences/update/",
+        views.api_update_notification_preferences,
+        name="api_update_notification_preferences",
+    ),
+    path(
+        "api/notifications/<int:notification_id>/read/",
+        views.api_notification_read,
+        name="api_notification_read",
+    ),
 
-    #application
+    # Driver points
+    path(
+        "api/points/mine/",
+        views.api_my_points,
+        name="api_my_points",
+    ),
+    path(
+        "api/points/history/",
+        views.api_my_point_history,
+        name="api_my_point_history",
+    ),
+
+    # Application pages
     path("apply/", views.app_page, name="app_page"),
     path("applying/", views.apply, name="apply"),
     path("appstatus/", views.app_status, name="app_status_page"),
     path("appstatus/check/", views.check_status, name="app_status"),
 
-    #existing template registration and login
+    # Existing template authentication
     path("login/", views.login_page, name="login_page"),
     path("loggingin/", views.login, name="login"),
     path("register/", views.register_page, name="register_page"),
     path("registering/", views.register, name="register"),
-    path("passwordchange/", views.password_change_page, name="password_change_page"),
-    path("changepassword/", views.change_password, name="change_password"),
+    path(
+        "passwordchange/",
+        views.password_change_page,
+        name="password_change_page",
+    ),
+    path(
+        "changepassword/",
+        views.change_password,
+        name="change_password",
+    ),
 
-    #existing home pages
-    path("driverhome/", views.driver_homepage, name="driver_homepage"),
-    path("sponsorhome/", views.sponsor_homepage, name="sponsor_homepage"),
-    path("adminhome/", views.admin_homepage, name="admin_homepage"),
+    # Existing home pages
+    path(
+        "driverhome/",
+        views.driver_homepage,
+        name="driver_homepage",
+    ),
+    path(
+        "sponsorhome/",
+        views.sponsor_homepage,
+        name="sponsor_homepage",
+    ),
+    path(
+        "adminhome/",
+        views.admin_homepage,
+        name="admin_homepage",
+    ),
 
-    #temp pass for emailed account setup link
+    # Temporary password for emailed account setup
     path(
         "account/setup/<uidb64>/<token>/",
         PasswordResetConfirmView.as_view(
@@ -71,14 +148,115 @@ urlpatterns = [
         name="account_setup",
     ),
 
-    # Resend an imported user's account-setup email
-    path("api/users/<int:user_id>/setup/resend/",views.api_resend_account_setup,name="api_resend_account_setup"),
+    # Resend imported user's account setup
+    path(
+        "api/users/<int:user_id>/setup/resend/",
+        views.api_resend_account_setup,
+        name="api_resend_account_setup",
+    ),
 
-    path("api/users/bulk-import/<int:job_id>/",views.api_bulk_import_status,name="api_bulk_import_status"),
+    # Bulk import status and results
+    path(
+        "api/users/bulk-import/<int:job_id>/",
+        views.api_bulk_import_status,
+        name="api_bulk_import_status",
+    ),
+    path(
+        "api/users/bulk-import/<int:job_id>/results/",
+        views.api_bulk_import_results,
+        name="api_bulk_import_results",
+    ),
 
-    path("api/users/bulk-import/<int:job_id>/results/",views.api_bulk_import_results,name="api_bulk_import_results"),
+    # Audit logs
+    path(
+        "api/audit-logs",
+        views.api_audit_logs,
+        name="api_audit_logs",
+    ),
+    path(
+        "api/audit-logs/download/",
+        views.api_audit_logs_download,
+        name="api_audit_logs_download",
+    ),
 
-    path("api/audit-logs", views.api_audit_logs, name="api_audit_logs"),
+    # =====================================
+    # ADMIN API
+    # =====================================
 
-    path("api/audit-logs/download/", views.api_audit_logs_download, name="api_audit_logs_download")
+    # Admin dashboard
+    path(
+        "api/admin/overview/",
+        admin_api.overview,
+        name="admin_overview",
+    ),
+
+    # List drivers, sponsors, and admins
+    path(
+        "api/admin/directory/",
+        admin_api.directory,
+        name="admin_directory",
+    ),
+
+    # Create sponsor accounts
+    path(
+        "api/admin/sponsors/create/",
+        admin_api.create_sponsor,
+        name="admin_create_sponsor",
+    ),
+
+    # Create admin accounts
+    path(
+        "api/admin/admins/create/",
+        admin_api.create_admin,
+        name="admin_create_admin",
+    ),
+
+    # Update sponsor fee
+    path(
+        "api/admin/sponsors/<int:sponsor_id>/fee/",
+        admin_api.update_fee,
+        name="admin_update_fee",
+    ),
+
+    # Assign driver to sponsor
+    path(
+        "api/admin/drivers/<int:driver_id>/assign/",
+        admin_api.assign_driver,
+        name="admin_assign_driver",
+    ),
+
+    # Preview user accounts
+    path(
+        "api/admin/preview/<str:role>/<int:user_id>/",
+        admin_api.preview,
+        name="admin_preview",
+    ),
+
+    # Reset driver password
+    path(
+        "api/admin/drivers/<int:driver_id>/reset-password/",
+        admin_api.send_driver_reset,
+        name="admin_reset_driver_password",
+    ),
+
+    # Activate or deactivate user
+    path(
+        "api/admin/users/<int:user_id>/status/",
+        admin_api.account_status,
+        name="admin_account_status",
+    ),
+
+    # Delete user account
+    path(
+        "api/admin/users/<int:user_id>/delete/",
+        admin_api.delete_account,
+        name="admin_delete_account",
+    ),
+
+    # Generate CSV reports
+    path(
+        "api/admin/reports/<str:kind>/",
+        admin_api.report_csv,
+        name="admin_reports",
+    ),
 ]
