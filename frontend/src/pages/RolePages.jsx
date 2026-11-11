@@ -87,6 +87,7 @@ export function HomePage({ user }) {
 
   const actions = {
     driver: [
+      ["My Profile", "/driver/profile"],
       ["Apply to a sponsor", "/driver/apply"],
       ["My applications", "/driver/applications"],
       ["Stores", "/driver/stores"],

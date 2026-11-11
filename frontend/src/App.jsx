@@ -4,7 +4,8 @@ import Navbar from "./components/NavBar";
 import RegisterPage from "./pages/RegisterPage.jsx";
 import CatalogPage from "./pages/CatalogPage";
 import SponsorEbayPage from "./pages/SponsorEbayPage";
-import EbayCatalog from "./EbayCatalog";
+import ProfilePage from "./pages/ProfilePage";
+import AboutPage from "./pages/AboutPage";
 
 import { useEffect, useState } from "react";
 import {
@@ -17,7 +18,6 @@ import {
 } from "react-router-dom";
 
 import { apiRequest } from "./api";
-import AboutPage from "./pages/AboutPage";
 
 import {
   HomePage,
@@ -238,6 +238,11 @@ function AppContent() {
               path="/driver/home"
               element={<HomePage user={user} />}
             />
+            
+            <Route
+              path="/driver/profile"
+              element={<ProfilePage />}
+            />
 
             <Route
               path="/driver/apply"
@@ -294,12 +299,7 @@ function AppContent() {
 
             <Route
               path="/sponsor/stores"
-              element={
-                <>
-                  <SponsorEbayPage />
-                  <EbayCatalog />
-                </>
-              }
+              element={<SponsorEbayPage />}
             />
           </Route>
 
@@ -340,7 +340,7 @@ function AppContent() {
           </Route>
 
           <Route
-            path="/about"
+            path="/app/about"
             element={<AboutPage />}
           />
         </Route>
@@ -366,3 +366,4 @@ export default function App() {
     </BrowserRouter>
   );
 }
+
