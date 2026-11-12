@@ -30,6 +30,14 @@ def driver_list_page(request):
     }
     return HttpResponse(template.render(context, request))
 
+def setup_driver_view(request, driver):
+    admin, response = _admin(request)
+    if response != None:
+        return response
+    
+    request.session['view_user'] = driver
+    return HttpResponseRedirect(reverse('accounts:driver_homepage'))
+
 def sponsor_list_page(request):
     admin, response = _admin(request)
     if response != None:
@@ -41,3 +49,11 @@ def sponsor_list_page(request):
         'sponsors': sponsors,
     }
     return HttpResponse(template.render(context, request))
+
+def setup_sponsor_view(request, sponsor):
+    admin, response = _admin(request)
+    if response != None:
+        return response
+    
+    request.session['view_user'] = sponsor
+    return HttpResponseRedirect(reverse('accounts:sponsor_homepage'))

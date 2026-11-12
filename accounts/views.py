@@ -1291,7 +1291,7 @@ def _role_homepage(request, required_role, template_name):
     if not request.user.is_authenticated:
         return HttpResponseRedirect(reverse("accounts:login_page"))
 
-    if request.user.user_type != required_role:
+    if request.user.user_type != required_role and request.session['view_user'] == None:
         return HttpResponse("You do not have access to this page.", status=403)
 
     return render(

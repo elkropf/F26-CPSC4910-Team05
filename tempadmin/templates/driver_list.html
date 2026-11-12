@@ -8,6 +8,7 @@
         <p>Email: {{ d.user.email }}</p>
         <p>Registered on {{ d.user.date_joined }}</p>
         <p>Last logged in {{ d.user.last_login }}, {% if d.user.is_active %}Active{% else %}Inactive{% endif %}</p>
+        <a href="{% url 'tempadmin:setup_driver_view' d.id %}"><button>View Site as {{ d.user.username }}</button></a>
     {% endfor %}
     <a href="{% url 'accounts:admin_homepage' %}"><button type="button">Return to Homepage</button></a>
 </body>
