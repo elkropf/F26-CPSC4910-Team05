@@ -24,6 +24,14 @@ class User(AbstractUser):
     point_notifications = models.BooleanField(default=True)
     order_notifications = models.BooleanField(default=True)
 
+#class to store the MFA code and expiration time for each user
+class MfaChallenge(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    code_hash = models.CharField(max_length=128)
+    expires_at = models.DateTimeField()
+    failed_attempts = models.PositiveSmallIntegerField(default=0)
+    used_at = models.DateTimeField(null=True, blank=True)
+
 # Driver Class
 class Driver(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
