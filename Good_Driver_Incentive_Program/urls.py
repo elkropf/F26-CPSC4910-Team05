@@ -22,6 +22,7 @@ from .react_frontend import react_frontend
 urlpatterns = [
     path('', include('accounts.urls')),
     path('admin/', admin.site.urls),
+    path('tempadmin/', include('tempadmin.urls')),
     path('api/about/', include('about.urls')),
     path('catalog/', include('catalog.urls')),
     re_path(r"^app(?:/.*)?$", react_frontend),

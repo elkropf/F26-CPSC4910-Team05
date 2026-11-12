@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<body>
+    <h2>Manage Drivers</h2>
+    {% for d in drivers %}
+        <h4>{{ d.user.username }}</h4>
+        <p>Name: {{ d.user.first_name }} {{d.user.last_name }}</p>
+        <p>Email: {{ d.user.email }}</p>
+        <p>Registered on {{ d.user.date_joined }}</p>
+        <p>Last logged in {{ d.user.last_login }}, {% if d.user.is_active %}Active{% else %}Inactive{% endif %}</p>
+    {% endfor %}
+    <a href="{% url 'accounts:admin_homepage' %}"><button type="button">Return to Homepage</button></a>
+</body>
+</html>

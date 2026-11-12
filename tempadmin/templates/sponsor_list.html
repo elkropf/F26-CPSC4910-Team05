@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<body>
+    <h2>Manage Sponsors</h2>
+    {% for s in sponsors %}
+        <h4>{{ s.user.username }}</h4>
+        <p>Name: {{ s.user.first_name }} {{ s.user.last_name }}</p>
+        <p>Email: {{ s.user.email }}</p>
+        <p>Organization: {{ s.organization.organization_name }}</p>
+        <p>Registered on {{ s.user.date_joined }}</p>
+        <p>Last logged in {{ s.user.last_login }}, {% if s.user.is_active %}Active{% else %}Inactive{% endif %}</p>
+    {% endfor %}
+    <a href="{% url 'accounts:admin_homepage' %}"><button type="button">Return to Homepage</button></a>
+</body>
+</html>
