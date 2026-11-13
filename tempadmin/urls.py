@@ -7,4 +7,5 @@ urlpatterns = [
     path('setdriverview/<int:driver>/', views.setup_driver_view, name='setup_driver_view'),
     path('listsponsors/', views.sponsor_list_page, name='sponsor_list_page'),
     path('setsponsorview/<int:sponsor>/', views.setup_sponsor_view, name='setup_sponsor_view'),
+    path('removeview/', views.return_from_view_as, name='return_from_view_as'),
 ]

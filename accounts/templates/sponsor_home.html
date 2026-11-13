@@ -1,6 +1,10 @@
 <!DOCTYPE html>
 <html>
 <body>
+    {% if view_as %}
+        <p>You are currently viewing as a sponsor.</p>
+        <a href="{% url 'tempadmin:return_from_view_as' %}"><button>Return to Admin View</button></a>
+    {% endif %}
     <h2>Welcome, {{ username }}</h2>
     <h3>Check the status of your drivers:</h3>
 

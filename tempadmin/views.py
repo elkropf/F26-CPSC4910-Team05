@@ -36,6 +36,7 @@ def setup_driver_view(request, driver):
         return response
     
     request.session['view_user'] = driver
+    request.session['user_type'] = 'driver'
     return HttpResponseRedirect(reverse('accounts:driver_homepage'))
 
 def sponsor_list_page(request):
@@ -56,4 +57,14 @@ def setup_sponsor_view(request, sponsor):
         return response
     
     request.session['view_user'] = sponsor
+    request.session['user_type'] = 'sponsor'
     return HttpResponseRedirect(reverse('accounts:sponsor_homepage'))
+
+def return_from_view_as(request):
+    admin, response = _admin(request)
+    if response != None:
+        return response
+    
+    del request.session['view_user']
+    del request.session['user_type']
+    return HttpResponseRedirect(reverse('accounts:admin_homepage'))

@@ -1291,13 +1291,22 @@ def _role_homepage(request, required_role, template_name):
     if not request.user.is_authenticated:
         return HttpResponseRedirect(reverse("accounts:login_page"))
 
-    if request.user.user_type != required_role and request.session['view_user'] == None:
+    if request.user.user_type != required_role and not 'view_user' in request.session:
         return HttpResponse("You do not have access to this page.", status=403)
+
+    context = { }
+    if 'view_user' in request.session:
+        user_object = Sponsor.objects.get(pk=request.session['view_user']).user if request.session['user_type'] == 'sponsor' else Driver.objects.get(pk=request.session['view_user']).user
+        user_name = user_object.username
+        context["view_as"] = 1
+    else:
+        user_name = request.user.username
+    context["username"] = user_name
 
     return render(
         request,
         template_name,
-        {"username": request.user.username},
+        context,
     )
 
 #display driver homepage
