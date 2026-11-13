@@ -14,6 +14,7 @@ urlpatterns = [
     path("api/auth/login/", views.api_login, name="api_login"),
     path("api/auth/logout/", views.api_logout, name="api_logout"),
     path("api/auth/me/", views.api_current_user, name="api_current_user"),
+    path("api/auth/profile/", views.api_profile),
 
     #organizations
     path("api/organizations/", views.api_organizations, name="api_organizations"),

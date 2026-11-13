@@ -39,7 +39,7 @@ export default function RegisterPage({ onRegistered }) {
       username: form.username,
       email: form.email,
       password: form.password,
-      user_type: form.user_type,
+      user_type: form.user_type === "sponsor" ? "Sponsor" : "Driver",
     });
 
     onRegistered(result.user);
