@@ -274,17 +274,20 @@ def sponsor_catalog(request):
             "error": "You must be logged in to view the catalog."
         }, status=401)
 
-    if request.user.user_type != UserType.SPONSOR:
+    if request.user.user_type != UserType.SPONSOR and not 'view_user' in request.session:
         return JsonResponse({
             "error": "Only sponsors can change an organization's catalog."
         }, status=403)
 
-    try:
-        sponsor = request.user.sponsor
-    except Sponsor.DoesNotExist:
-        return JsonResponse({
-            "error": "Sponsor profile not found."
-        }, status=404)
+    if 'view_user' in request.session:
+        sponsor = Sponsor.objects.get(pk=request.session['view_user'])
+    else:
+        try:
+            sponsor = request.user.sponsor
+        except Sponsor.DoesNotExist:
+            return JsonResponse({
+                "error": "Sponsor profile not found."
+            }, status=404)
 
     organization = sponsor.organization
     catalog = organization.products.all()
@@ -295,11 +298,16 @@ def sponsor_catalog(request):
     context = {
         'products': catalog
     }
+    if 'view_user' in request.session:
+        context['view_as'] = 1
     return HttpResponse(template.render(context, request))
 
 def search_page(request):
     template = loader.get_template('sponsor_catalog.html')
-    return HttpResponse(template.render())
+    context = { }
+    if 'view_user' in request.session:
+        context['view_as'] = 1
+    return HttpResponse(template.render(context, request))
 
 def search(request):
     term = request.GET["search"]
@@ -356,14 +364,13 @@ def search(request):
         'error_message': "",
         'response': items,
     }
-    
+    if 'view_user' in request.session:
+        context['view_as'] = 1
+
     return render(
         request,
         'sponsor_catalog.html',
-        {
-            'error_message': "",
-            'response': items,
-        }
+        context,
     )
 
 @require_POST
@@ -373,17 +380,20 @@ def add_to_catalog(request):
             "error": "You must be logged in to change the catalog."
         }, status=401)
 
-    if request.user.user_type != UserType.SPONSOR:
+    if request.user.user_type != UserType.SPONSOR and not 'view_user' in request.session:
         return JsonResponse({
             "error": "Only sponsors can change an organization's catalog."
         }, status=403)
 
-    try:
-        sponsor = request.user.sponsor
-    except Sponsor.DoesNotExist:
-        return JsonResponse({
-            "error": "Sponsor profile not found."
-        }, status=404)
+    if 'view_user' in request.session:
+        sponsor = Sponsor.objects.get(pk=request.session['view_user'])
+    else:
+        try:
+            sponsor = request.user.sponsor
+        except Sponsor.DoesNotExist:
+            return JsonResponse({
+                "error": "Sponsor profile not found."
+            }, status=404)
     
     try:
         organization_id = sponsor.organization
@@ -406,6 +416,8 @@ def add_to_catalog(request):
         'error_message': "Successfully added items.",
         'response': None
     }
+    if 'view_user' in request.session:
+        context['view_as'] = 1
     return HttpResponseRedirect(reverse("catalog:search_page", query=context))
 
 def remove_from_catalog(request, item_id):
@@ -414,17 +426,20 @@ def remove_from_catalog(request, item_id):
             "error": "You must be logged in to change the catalog."
         }, status=401)
 
-    if request.user.user_type != UserType.SPONSOR:
+    if request.user.user_type != UserType.SPONSOR and not 'view_user' in request.session:
         return JsonResponse({
             "error": "Only sponsors can change an organization's catalog."
         }, status=403)
 
-    try:
-        sponsor = request.user.sponsor
-    except Sponsor.DoesNotExist:
-        return JsonResponse({
-            "error": "Sponsor profile not found."
-        }, status=404)
+    if 'view_user' in request.session:
+        sponsor = Sponsor.objects.get(pk=request.session['view_user'])
+    else:
+        try:
+            sponsor = request.user.sponsor
+        except Sponsor.DoesNotExist:
+            return JsonResponse({
+                "error": "Sponsor profile not found."
+            }, status=404)
     
     try:
         organization_id = sponsor.organization
@@ -449,4 +464,7 @@ def remove_from_catalog(request, item_id):
     # Now delete the actual product
     product.delete()
 
-    return HttpResponseRedirect(reverse("catalog:sponsor_catalog"))
+    context = { }
+    if 'view_user' in request.session:
+        context['view_as'] = 1
+    return HttpResponseRedirect(reverse("catalog:sponsor_catalog", query=context))
