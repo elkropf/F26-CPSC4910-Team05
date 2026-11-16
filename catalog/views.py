@@ -22,12 +22,15 @@ def driver_catalog(request):
             "error": "You must be logged in to view a catalog."
         }, status=401)
 
-    try:
-        driver = request.user.driver
-    except Driver.DoesNotExist:
-        return JsonResponse({
-            "error": "Driver profile not found."
-        }, status=404)
+    if 'view_user' in request.session:
+        driver = Driver.objects.get(pk=request.session['view_user'])
+    else:
+        try:
+            driver = request.user.driver
+        except Driver.DoesNotExist:
+            return JsonResponse({
+                "error": "Driver profile not found."
+            }, status=404)
     
     organizations = Organization.objects.all()
     products = []
@@ -39,6 +42,8 @@ def driver_catalog(request):
         'organizations': organizations,
         'products': products,
     }
+    if 'view_user' in request.session:
+        context['view_as'] = 1
     return HttpResponse(template.render(context, request))
 
 @require_POST
@@ -47,12 +52,16 @@ def add_to_cart(request):
         return JsonResponse({
             "error": "You must be logged in to order."
         }, status=401)
-    try:
-        driver = request.user.driver
-    except Driver.DoesNotExist:
-        return JsonResponse({
-            "error": "Driver profile not found."
-        }, status=404)
+    
+    if 'view_user' in request.session:
+        driver = Driver.objects.get(pk=request.session['view_user'])
+    else:
+        try:
+            driver = request.user.driver
+        except Driver.DoesNotExist:
+            return JsonResponse({
+                "error": "Driver profile not found."
+            }, status=404)
         
     product = request.POST["order"]
     true_product = Product.objects.filter(product_name=product)[0]
@@ -89,12 +98,15 @@ def driver_cart(request):
         return JsonResponse({
             "error": "You must be logged in to view a cart."
         }, status=401)
-    try:
-        driver = request.user.driver
-    except Driver.DoesNotExist:
-        return JsonResponse({
-            "error": "Driver profile not found."
-        }, status=404)
+    if 'view_user' in request.session:
+        driver = Driver.objects.get(pk=request.session['view_user'])
+    else:
+        try:
+            driver = request.user.driver
+        except Driver.DoesNotExist:
+            return JsonResponse({
+                "error": "Driver profile not found."
+            }, status=404)
 
     try:
         order = Order.objects.get(driver=driver, order_status=OrderStatus.PENDING)
@@ -110,7 +122,8 @@ def driver_cart(request):
         'order': order,
         'items': order_items,
     }
-    print(order_items)
+    if 'view_user' in request.session:
+        context['view_as'] = 1
     return HttpResponse(template.render(context, request))
 
 @require_POST
@@ -119,12 +132,15 @@ def place_order(request):
         return JsonResponse({
             "error": "You must be logged in to place an order."
         }, status=401)
-    try:
-        driver = request.user.driver
-    except Driver.DoesNotExist:
-        return JsonResponse({
-            "error": "Driver profile not found."
-        }, status=404)
+    if 'view_user' in request.session:
+        driver = Driver.objects.get(pk=request.session['view_user'])
+    else:
+        try:
+            driver = request.user.driver
+        except Driver.DoesNotExist:
+            return JsonResponse({
+                "error": "Driver profile not found."
+            }, status=404)
     
     try:
         order = Order.objects.get(driver=driver)
@@ -155,12 +171,15 @@ def remove_from_cart(request, item_id):
         return JsonResponse({
             "error": "You must be logged in to remove an item."
         }, status=401)
-    try:
-        driver = request.user.driver
-    except Driver.DoesNotExist:
-        return JsonResponse({
-            "error": "Driver profile not found."
-        }, status=404)
+    if 'view_user' in request.session:
+        driver = Driver.objects.get(pk=request.session['view_user'])
+    else:
+        try:
+            driver = request.user.driver
+        except Driver.DoesNotExist:
+            return JsonResponse({
+                "error": "Driver profile not found."
+            }, status=404)
 
     try:
         item = OrderItem.objects.get(pk=item_id)
@@ -187,12 +206,15 @@ def order_status(request):
         return JsonResponse({
             "error": "You must be logged in to view orders."
         }, status=401)
-    try:
-        driver = request.user.driver
-    except Driver.DoesNotExist:
-        return JsonResponse({
-            "error": "Driver profile not found."
-        }, status=404)
+    if 'view_user' in request.session:
+        driver = Driver.objects.get(pk=request.session['view_user'])
+    else:
+        try:
+            driver = request.user.driver
+        except Driver.DoesNotExist:
+            return JsonResponse({
+                "error": "Driver profile not found."
+            }, status=404)
 
     orders = Order.objects.filter(driver=driver)
     if len(orders) == 0:
@@ -210,6 +232,8 @@ def order_status(request):
         'order': orders,
         'order_item': order_items,
     }
+    if 'view_user' in request.session:
+        context['view_as'] = 1
     return HttpResponse(template.render(context, request))
 
 def cancel_order(request, order_id):
@@ -217,12 +241,15 @@ def cancel_order(request, order_id):
         return JsonResponse({
             "error": "You must be logged in to cancel an order."
         }, status=401)
-    try:
-        driver = request.user.driver
-    except Driver.DoesNotExist:
-        return JsonResponse({
-            "error": "Driver profile not found."
-        }, status=404)
+    if 'view_user' in request.session:
+        driver = Driver.objects.get(pk=request.session['view_user'])
+    else:
+        try:
+            driver = request.user.driver
+        except Driver.DoesNotExist:
+            return JsonResponse({
+                "error": "Driver profile not found."
+            }, status=404)
     
     try:
         order = Order.objects.get(pk=order_id)
