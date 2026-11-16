@@ -14,6 +14,7 @@ urlpatterns = [
     path("api/auth/login/", views.api_login, name="api_login"),
     path("api/auth/logout/", views.api_logout, name="api_logout"),
     path("api/auth/me/", views.api_current_user, name="api_current_user"),
+    path("api/auth/profile/", views.api_profile),
 
     #organizations
     path("api/organizations/", views.api_organizations, name="api_organizations"),
@@ -53,6 +54,8 @@ urlpatterns = [
     path("loggingin/", views.login, name="login"),
     path("register/", views.register_page, name="register_page"),
     path("registering/", views.register, name="register"),
+    path("passwordchange/", views.password_change_page, name="password_change_page"),
+    path("changepassword/", views.change_password, name="change_password"),
 
     #existing home pages
     path("driverhome/", views.driver_homepage, name="driver_homepage"),
