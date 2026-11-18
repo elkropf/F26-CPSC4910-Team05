@@ -63,6 +63,11 @@ urlpatterns = [
     path("sponsorhome/", views.sponsor_homepage, name="sponsor_homepage"),
     path("adminhome/", views.admin_homepage, name="admin_homepage"),
 
+    #sponsor view-as driver
+    path("sponsor/listdrivers/", views.org_driver_list_page, name="org_driver_list_page"),
+    path("sponsor/setdriverview/<int:driver>/", views.set_driver_view, name="set_driver_view"),
+    path("sponsor/removeview/", views.remove_view_as, name="remove_view_as"),
+
     #temp pass for emailed account setup link
     path(
         "account/setup/<uidb64>/<token>/",

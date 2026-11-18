@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<body>
+    {% if view_as %}
+        <p>You are currently viewing as a sponsor.</p>
+        <a href="{% url 'tempadmin:return_from_view_as' %}"><button>Return to Admin View</button></a>
+    {% endif %}
+    <h2>Manage Drivers</h2>
+    {% for d in drivers %}
+        <h4>{{ d.user.username }}</h4>
+        <p>Name: {{ d.user.first_name }} {{d.user.last_name }}</p>
+        <p>Email: {{ d.user.email }}</p>
+        <p>Registered on {{ d.user.date_joined }}</p>
+        <p>Last logged in {{ d.user.last_login }}, {% if d.user.is_active %}Active{% else %}Inactive{% endif %}</p>
+        <a href="{% url 'accounts:set_driver_view' d.id %}"><button>View Site as {{ d.user.username }}</button></a>
+    {% endfor %}
+    <a href="{% url 'accounts:sponsor_homepage' %}"><button type="button">Return to Homepage</button></a>
+</body>
+</html>

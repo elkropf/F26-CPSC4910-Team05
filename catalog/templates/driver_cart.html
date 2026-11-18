@@ -3,7 +3,11 @@
 <body>
     {% if view_as %}
         <p>You are currently viewing as a driver.</p>
+        {% if view_as == 2 %}
+        <a href="{% url 'accounts:remove_view_as' %}"><button>Return to Sponsor View</button></a>
+        {% else %}
         <a href="{% url 'tempadmin:return_from_view_as' %}"><button>Return to Admin View</button></a>
+        {% endif %}
     {% endif %}
     <h2>Checkout</h2>
     {% if message %}<p><strong>{{ message }}</strong></p>{% endif %}

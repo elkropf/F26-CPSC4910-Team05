@@ -1293,7 +1293,7 @@ def app_page(request):
         "organization": Organization.objects.order_by("-id"),
     }
     if 'view_user' in request.session:
-        context['view_as'] = 1
+        context['view_as'] = 2 if request.user.user_type == UserType.SPONSOR else 1
 
     return HttpResponse(template.render(context, request))
 
@@ -1308,7 +1308,7 @@ def app_status(request):
         "show_search": True,
     }
     if 'view_user' in request.session:
-        context['view_as'] = 1
+        context['view_as'] = 2 if request.user.user_type == UserType.SPONSOR else 1
 
     return HttpResponse(template.render(context, request))
 
@@ -1340,7 +1340,7 @@ def check_status(request):
         "show_search": True,
     }
     if 'view_user' in request.session:
-        context['view_as'] = 1
+        context['view_as'] = 2 if request.user.user_type == UserType.SPONSOR else 1
     if application is None:
         context['error_message'] = "Could not find that application in your account."
         return render(
@@ -1508,7 +1508,7 @@ def _role_homepage(request, required_role, template_name):
     if 'view_user' in request.session:
         user_object = Sponsor.objects.get(pk=request.session['view_user']).user if request.session['user_type'] == 'sponsor' else Driver.objects.get(pk=request.session['view_user']).user
         user_name = user_object.username
-        context["view_as"] = 1
+        context["view_as"] = 2 if request.user.user_type == UserType.SPONSOR else 1
     else:
         user_name = request.user.username
     context["username"] = user_name
@@ -1539,6 +1539,70 @@ def admin_homepage(request):
     return _role_homepage(
         request, UserType.ADMIN, "admin_home.html"
     )
+
+#display sponsor list of drivers
+def org_driver_list_page(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "You are not logged in."}, status=401)
+    if request.user.user_type != UserType.SPONSOR and not 'view_user' in request.session:
+        return JsonResponse({"error": "You must be a sponsor to perform this."}, status=403)
+    if 'view_user' in request.session:
+        sponsor = Sponsor.objects.get(pk=request.session['view_user'])
+    else:
+        try:
+            sponsor = request.user.sponsor
+        except Sponsor.DoesNotExist:
+            return JsonResponse({
+                "error": "Sponsor profile not found."
+            }, status=404)
+
+    driver_orgs = DriverOrganization.objects.filter(organization=sponsor.organization)
+    drivers = []
+    for d in driver_orgs:
+        drivers.append(d.driver)
+    template = loader.get_template('sponsor_driver_list.html')
+    context = {
+        'drivers': drivers,
+    }
+    if 'view_user' in request.session:
+        context['view_as'] = 1
+    return HttpResponse(template.render(context, request))
+
+def set_driver_view(request, driver):
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "You are not logged in."}, status=401)
+    if request.user.user_type != UserType.SPONSOR and not 'view_user' in request.session:
+        return JsonResponse({"error": "You must be a sponsor to perform this."}, status=403)
+    if 'view_user' in request.session:
+        sponsor = Sponsor.objects.get(pk=request.session['view_user'])
+    else:
+        try:
+            sponsor = request.user.sponsor
+        except Sponsor.DoesNotExist:
+            return JsonResponse({
+                "error": "Sponsor profile not found."
+            }, status=404)
+
+    if 'view_user' in request.session:
+        return JsonResponse({"error": "You are already in a view-as state."}, status=403)
+
+    request.session['view_user'] = driver
+    request.session['user_type'] = 'driver'
+    return HttpResponseRedirect(reverse('accounts:driver_homepage'))
+
+def remove_view_as(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "You are not logged in."}, status=401)
+    if request.user.user_type != UserType.SPONSOR:
+        return JsonResponse({"error": "You must be a sponsor to perform this."}, status=403)
+    try:
+        sponsor = request.user.sponsor
+    except Sponsor.DoesNotExist:
+        return JsonResponse({"error": "Sponsor profile not found."}, status=404)
+
+    del request.session['view_user']
+    del request.session['user_type']
+    return HttpResponseRedirect(reverse('accounts:sponsor_homepage'))
 
 #show import progresse
 @require_GET

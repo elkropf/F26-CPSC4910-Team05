@@ -43,7 +43,7 @@ def driver_catalog(request):
         'products': products,
     }
     if 'view_user' in request.session:
-        context['view_as'] = 1
+        context['view_as'] = 2 if request.user.user_type == UserType.SPONSOR else 1
     return HttpResponse(template.render(context, request))
 
 @require_POST
@@ -123,7 +123,7 @@ def driver_cart(request):
         'items': order_items,
     }
     if 'view_user' in request.session:
-        context['view_as'] = 1
+        context['view_as'] = 2 if request.user.user_type == UserType.SPONSOR else 1
     return HttpResponse(template.render(context, request))
 
 @require_POST
@@ -233,7 +233,7 @@ def order_status(request):
         'order_item': order_items,
     }
     if 'view_user' in request.session:
-        context['view_as'] = 1
+        context['view_as'] = 2 if request.user.user_type == UserType.SPONSOR else 1
     return HttpResponse(template.render(context, request))
 
 def cancel_order(request, order_id):
