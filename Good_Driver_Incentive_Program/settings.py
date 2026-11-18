@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'accounts',
     'about',
     'catalog',
+    'tempadmin',
 ]
 
 # Using my Personal created user model instead of the default Django User model. This is necessary to allow for the different user types (Driver, Sponsor, Admin).
@@ -173,3 +174,6 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
 ]
+
+#Used to allow cookies to work
+SESSION_ENGINE = "django.contrib.sessions.backends.signed_cookies"

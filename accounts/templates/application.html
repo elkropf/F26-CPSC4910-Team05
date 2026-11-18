@@ -1,6 +1,10 @@
 <!DOCTYPE html>
 <html>
 <body>
+    {% if view_as %}
+        <p>You are currently viewing as a driver.</p>
+        <a href="{% url 'tempadmin:return_from_view_as' %}"><button>Return to Admin View</button></a>
+    {% endif %}
     <h2>Application</h2>
 
     <form action="{% url 'accounts:apply' %}" method="post">

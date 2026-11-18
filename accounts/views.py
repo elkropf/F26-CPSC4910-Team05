@@ -1211,6 +1211,9 @@ def app_page(request):
     context = {
         "organization": Organization.objects.order_by("-id"),
     }
+    if 'view_user' in request.session:
+        context['view_as'] = 1
+
     return HttpResponse(template.render(context, request))
 
 #placeholder legacy application search page
@@ -1223,6 +1226,9 @@ def app_status(request):
     context = {
         "show_search": True,
     }
+    if 'view_user' in request.session:
+        context['view_as'] = 1
+
     return HttpResponse(template.render(context, request))
 
 #look up for application for driver
@@ -1231,7 +1237,8 @@ def check_status(request):
     if not request.user.is_authenticated:
         return HttpResponseRedirect(reverse("accounts:login_page"))
 
-    if request.user.user_type != UserType.DRIVER:
+    driver_impersonate = 'user_type' in request.session and request.session['user_type'] == 'driver'
+    if request.user.user_type != UserType.DRIVER and not driver_impersonate:
         return HttpResponse("Only drivers can check application status.", status=403)
 
     try:
@@ -1239,30 +1246,34 @@ def check_status(request):
     except (TypeError, ValueError):
         application_id = None
 
+    if 'view_user' in request.session:
+        user_object = Driver.objects.get(pk=request.session['view_user']).user
+    else:
+        user_object = request.user
     application = Application.objects.filter(
         id=application_id,
-        driver__user=request.user,
+        driver__user=user_object,
     ).first()
 
+    context = {
+        "show_search": True,
+    }
+    if 'view_user' in request.session:
+        context['view_as'] = 1
     if application is None:
+        context['error_message'] = "Could not find that application in your account."
         return render(
             request,
             "app_status.html",
-            {
-                "show_search": True,
-                "error_message": "Could not find that application in your account.",
-            },
+            context,
         )
 
+    context['app_number'] = application.id
+    context['app_stat'] = application.application_status
     return render(
         request,
         "app_status.html",
-        {
-            "show_search": True,
-            "error_message": "",
-            "app_number": application.id,
-            "app_stat": application.application_status,
-        },
+        context,
     )
 
 #django login form with csrf protection
@@ -1410,13 +1421,22 @@ def _role_homepage(request, required_role, template_name):
     if not request.user.is_authenticated:
         return HttpResponseRedirect(reverse("accounts:login_page"))
 
-    if request.user.user_type != required_role:
+    if request.user.user_type != required_role and not 'view_user' in request.session:
         return HttpResponse("You do not have access to this page.", status=403)
+
+    context = { }
+    if 'view_user' in request.session:
+        user_object = Sponsor.objects.get(pk=request.session['view_user']).user if request.session['user_type'] == 'sponsor' else Driver.objects.get(pk=request.session['view_user']).user
+        user_name = user_object.username
+        context["view_as"] = 1
+    else:
+        user_name = request.user.username
+    context["username"] = user_name
 
     return render(
         request,
         template_name,
-        {"username": request.user.username},
+        context,
     )
 
 #display driver homepage
