@@ -8,6 +8,7 @@ export default function CatalogPage({ role }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [points, setPoints] = useState(0);
 
   async function refreshCart() {
     const data = await apiRequest("/api/catalog/cart/");
@@ -23,6 +24,8 @@ export default function CatalogPage({ role }) {
         if (role === "driver") {
           const cartData = await apiRequest("/api/catalog/cart/");
           if (active) setCart(cartData.cart);
+          const pointAmt = await apiRequest("/api/catalog/points/");
+          if (active) setPoints(pointAmt.points);
         }
       } catch (err) {
         if (active) setError(err.message);
@@ -54,6 +57,7 @@ export default function CatalogPage({ role }) {
   return (
     <main className="catalog-page">
       <h1>{role === "sponsor" ? "My Sponsor Catalog" : "Rewards Catalog"}</h1>
+      {role === "driver" && <p>Current point balance: <strong>{points}</strong></p>}
       {error && <p className="error" role="alert">{error}</p>}
       {message && <p role="status">{message}</p>}
       <div className="catalog-grid">

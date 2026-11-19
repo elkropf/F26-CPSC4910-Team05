@@ -113,6 +113,15 @@ def products(request):
         ]
     })
 
+@require_GET
+def points(request):
+    driver, error = _driver(request)
+
+    if error is not None:
+        return error
+
+    point_amt = Points.objects.get(driver=driver).points_balance
+    return JsonResponse({"points": point_amt})
 
 def _cart_dict(driver):
     order = (

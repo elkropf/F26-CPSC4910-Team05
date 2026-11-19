@@ -103,12 +103,15 @@ export function HomePage({ user }) {
       ["About", "/about"],
     ],
   };
-
+  if (role === "driver") {
+    const pointAmt = await apiRequest("/api/catalog/points/").points;
+  }
+  
   return (
     <section>
       <h1>Welcome, {user.username}</h1>
       <p>Your account role: <strong>{role}</strong></p>
-
+      {role === "driver" && <p>Current point balance: <strong>{pointAmt}</strong></p>}
       <div className="cards">
         {(actions[role] || []).map(([name, path]) => (
           <Link className="card action-card" to={path} key={path}>

@@ -4,6 +4,7 @@ from . import ebay_api
 
 urlpatterns = [
     path("products/", api_views.products, name="api_catalog_products"),
+    path("points/", api_views.points, name="api_get_points"),
     path("cart/", api_views.cart, name="api_catalog_cart"),
     path("cart/add/", api_views.add_to_cart, name="api_catalog_add"),
     path("cart/remove/<int:item_id>/", api_views.remove_from_cart, name="api_catalog_remove"),
