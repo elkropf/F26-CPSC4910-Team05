@@ -1,0 +1,55 @@
+[1mdiff --cc accounts/urls.py[m
+[1mindex cad5cba,feb27ae..0000000[m
+[1m--- a/accounts/urls.py[m
+[1m+++ b/accounts/urls.py[m
+[36m@@@ -111,35 -55,20 +112,44 @@@[m [murlpatterns = [m
+      path("loggingin/", views.login, name="login"),[m
+      path("register/", views.register_page, name="register_page"),[m
+      path("registering/", views.register, name="register"),[m
+[31m -    path("passwordchange/", views.password_change_page, name="password_change_page"),[m
+[31m -    path("changepassword/", views.change_password, name="change_password"),[m
+[32m +    path([m
+[32m +        "passwordchange/",[m
+[32m +        views.password_change_page,[m
+[32m +        name="password_change_page",[m
+[32m +    ),[m
+[32m +    path([m
+[32m +        "changepassword/",[m
+[32m +        views.change_password,[m
+[32m +        name="change_password",[m
+[32m +    ),[m
+  [m
+[31m -    #existing home pages[m
+[31m -    path("driverhome/", views.driver_homepage, name="driver_homepage"),[m
+[31m -    path("sponsorhome/", views.sponsor_homepage, name="sponsor_homepage"),[m
+[31m -    path("adminhome/", views.admin_homepage, name="admin_homepage"),[m
+[32m +    # Existing home pages[m
+[32m +    path([m
+[32m +        "driverhome/",[m
+[32m +        views.driver_homepage,[m
+[32m +        name="driver_homepage",[m
+[32m +    ),[m
+[32m +    path([m
+[32m +        "sponsorhome/",[m
+[32m +        views.sponsor_homepage,[m
+[32m +        name="sponsor_homepage",[m
+[32m +    ),[m
+[32m +    path([m
+[32m +        "adminhome/",[m
+[32m +        views.admin_homepage,[m
+[32m +        name="admin_homepage",[m
+[32m +    ),[m
+  [m
+[32m++<<<<<<< HEAD[m
+[32m +    # Temporary password for emailed account setup[m
+[32m++=======[m
+[32m+     #sponsor view-as driver[m
+[32m+     path("sponsor/listdrivers/", views.org_driver_list_page, name="org_driver_list_page"),[m
+[32m+     path("sponsor/setdriverview/<int:driver>/", views.set_driver_view, name="set_driver_view"),[m
+[32m+     path("sponsor/removeview/", views.remove_view_as, name="remove_view_as"),[m
+[32m+ [m
+[32m+     #temp pass for emailed account setup link[m
+[32m++>>>>>>> origin/main[m
+      path([m
+          "account/setup/<uidb64>/<token>/",[m
+          PasswordResetConfirmView.as_view([m
