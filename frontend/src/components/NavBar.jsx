@@ -26,10 +26,14 @@ const menus = {
 
 export default function Navbar({ role, username, onLogout }) {
   const links = role
-    ? [...(menus[role] || []), ["About", "/about"]]
+    ? [
+        ...(menus[role] || []),
+        ["Notifications", "/notifications"],
+        ["About", "/about"]
+      ]
     : [
         ["Login", "/login"],
-        ["Register", "/register"],
+        ["Register", "/register"]
       ];
 
   return (
