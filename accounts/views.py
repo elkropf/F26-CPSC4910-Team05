@@ -29,6 +29,9 @@ from django.core.exceptions import PermissionDenied, ValidationError
 import csv
 from .notifications import create_notification
 from .models import notification
+from .mfa import send_mfa_code
+from .models import MfaChallenge
+from django.contrib.auth.hashers import check_password
 
 #Read JSON / form data from a request
 def _request_data(request):
@@ -147,14 +150,92 @@ def api_login(request):
     if not user.is_active:
         return JsonResponse({"error": "This account is inactive."}, status=403)
 
-    auth_login(request, user)
+    if not user.email:
+        return JsonResponse(
+            {"error": "This account has no email address for sign-in verification."},
+            status=400,
+        )
+
+    request.session.pop("mfa_challenge_id", None)
+    challenge = send_mfa_code(user)
+    request.session["mfa_challenge_id"] = challenge.id
+    request.session["mfa_backend"] = user.backend
+
+    return JsonResponse({"mfa_required": True}, status=202)
+
+#verify MFA code and complete login
+@require_POST
+def api_verify_mfa(request):
+    is_form = request.content_type == "application/x-www-form-urlencoded"
+
+    def verification_error(message):
+        if is_form:
+            return render(
+                request,
+                "mfa_verify.html",
+                {"error_message": message},
+                status=400,
+            )
+        return JsonResponse({"error": message}, status=400)
+
+    challenge_id = request.session.get("mfa_challenge_id")
+    backend = request.session.get("mfa_backend")
+    if not challenge_id or not backend:
+        return verification_error("Start by signing in again.")
+
+    data = _request_data(request)
+    code = data.get("code") if data is not None else None
+    if (
+        not isinstance(code, str)
+        or len(code) != 6
+        or not code.isascii()
+        or not code.isdigit()
+    ):
+        return verification_error("Enter a six-digit code.")
+
+    with transaction.atomic():
+        challenge = MfaChallenge.objects.select_for_update().filter(
+            id=challenge_id,
+        ).first()
+
+        if (
+            challenge is None
+            or challenge.used_at is not None
+            or challenge.expires_at <= timezone.now()
+            or challenge.failed_attempts >= 5
+            or not challenge.user.is_active
+        ):
+            return verification_error("Start by signing in again.")
+
+        if not check_password(code, challenge.code_hash):
+            challenge.failed_attempts += 1
+            challenge.save(update_fields=["failed_attempts"])
+            return verification_error("Incorrect code.")
+
+        challenge.used_at = timezone.now()
+        challenge.save(update_fields=["used_at"])
+        user = challenge.user
+
+    request.session.pop("mfa_challenge_id", None)
+    request.session.pop("mfa_backend", None)
+    auth_login(request, user, backend=backend)
+
     record_event(
         action="user.logged_in",
         actor=user,
         record_type="user",
         record_id=user.id,
-        description=f"User '{username}' logged in."
+        description=f"User '{user.username}' logged in.",
     )
+
+    if is_form:
+        homepage = {
+            UserType.DRIVER: "accounts:driver_homepage",
+            UserType.SPONSOR: "accounts:sponsor_homepage",
+            UserType.ADMIN: "accounts:admin_homepage",
+        }.get(user.user_type, "accounts:login_page")
+        return HttpResponseRedirect(reverse(homepage))
+
     return JsonResponse({"user": _user_data(user)})
 
 #end current user session
@@ -1220,6 +1301,9 @@ def app_page(request):
     context = {
         "organization": Organization.objects.order_by("-id"),
     }
+    if 'view_user' in request.session:
+        context['view_as'] = 2 if request.user.user_type == UserType.SPONSOR else 1
+
     return HttpResponse(template.render(context, request))
 
 #placeholder legacy application search page
@@ -1232,6 +1316,9 @@ def app_status(request):
     context = {
         "show_search": True,
     }
+    if 'view_user' in request.session:
+        context['view_as'] = 2 if request.user.user_type == UserType.SPONSOR else 1
+
     return HttpResponse(template.render(context, request))
 
 #look up for application for driver
@@ -1240,7 +1327,8 @@ def check_status(request):
     if not request.user.is_authenticated:
         return HttpResponseRedirect(reverse("accounts:login_page"))
 
-    if request.user.user_type != UserType.DRIVER:
+    driver_impersonate = 'user_type' in request.session and request.session['user_type'] == 'driver'
+    if request.user.user_type != UserType.DRIVER and not driver_impersonate:
         return HttpResponse("Only drivers can check application status.", status=403)
 
     try:
@@ -1248,30 +1336,34 @@ def check_status(request):
     except (TypeError, ValueError):
         application_id = None
 
+    if 'view_user' in request.session:
+        user_object = Driver.objects.get(pk=request.session['view_user']).user
+    else:
+        user_object = request.user
     application = Application.objects.filter(
         id=application_id,
-        driver__user=request.user,
+        driver__user=user_object,
     ).first()
 
+    context = {
+        "show_search": True,
+    }
+    if 'view_user' in request.session:
+        context['view_as'] = 2 if request.user.user_type == UserType.SPONSOR else 1
     if application is None:
+        context['error_message'] = "Could not find that application in your account."
         return render(
             request,
             "app_status.html",
-            {
-                "show_search": True,
-                "error_message": "Could not find that application in your account.",
-            },
+            context,
         )
 
+    context['app_number'] = application.id
+    context['app_stat'] = application.application_status
     return render(
         request,
         "app_status.html",
-        {
-            "show_search": True,
-            "error_message": "",
-            "app_number": application.id,
-            "app_stat": application.application_status,
-        },
+        context,
     )
 
 #django login form with csrf protection
@@ -1300,20 +1392,19 @@ def login(request):
             {"error_message": "Username and password do not match."},
         )
 
-    auth_login(request, user)
-    record_event(
-        action="user.logged_in",
-        actor=user,
-        record_type="user",
-        record_id=user.id,
-        description=f"User '{username}' logged in.",
-    )
-    homepage = {
-        UserType.DRIVER: "accounts:driver_homepage",
-        UserType.SPONSOR: "accounts:sponsor_homepage",
-        UserType.ADMIN: "accounts:admin_homepage",
-    }.get(user.user_type, "accounts:login_page")
-    return HttpResponseRedirect(reverse(homepage))
+    if not user.is_active or not user.email:
+        return render(request, "login.html", {
+            "error_message": "This account cannot use email verification.",
+        }, status=400)
+
+    request.session.pop("mfa_challenge_id", None)
+    request.session.pop("mfa_backend", None)
+
+    challenge = send_mfa_code(user)
+    request.session["mfa_challenge_id"] = challenge.id
+    request.session["mfa_backend"] = user.backend
+
+    return render(request, "mfa_verify.html")
 
 #display django registration form
 def register_page(request):
@@ -1388,7 +1479,7 @@ def change_password(request):
             "password_change.html",
             {"error_message": "This username does not exist."},
         )
-    
+
     if password != password_conf:
         return render(
             request,
@@ -1408,7 +1499,7 @@ def change_password(request):
     user = User.objects.get(username__iexact=username)
     user.password = make_password(password)
     user.save()
-    
+
     context = {
         "success": 1,
     }
@@ -1419,13 +1510,22 @@ def _role_homepage(request, required_role, template_name):
     if not request.user.is_authenticated:
         return HttpResponseRedirect(reverse("accounts:login_page"))
 
-    if request.user.user_type != required_role:
+    if request.user.user_type != required_role and not 'view_user' in request.session:
         return HttpResponse("You do not have access to this page.", status=403)
+
+    context = { }
+    if 'view_user' in request.session:
+        user_object = Sponsor.objects.get(pk=request.session['view_user']).user if request.session['user_type'] == 'sponsor' else Driver.objects.get(pk=request.session['view_user']).user
+        user_name = user_object.username
+        context["view_as"] = 2 if request.user.user_type == UserType.SPONSOR else 1
+    else:
+        user_name = request.user.username
+    context["username"] = user_name
 
     return render(
         request,
         template_name,
-        {"username": request.user.username},
+        context,
     )
 
 #display driver homepage
@@ -1448,6 +1548,70 @@ def admin_homepage(request):
     return _role_homepage(
         request, UserType.ADMIN, "admin_home.html"
     )
+
+#display sponsor list of drivers
+def org_driver_list_page(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "You are not logged in."}, status=401)
+    if request.user.user_type != UserType.SPONSOR and not 'view_user' in request.session:
+        return JsonResponse({"error": "You must be a sponsor to perform this."}, status=403)
+    if 'view_user' in request.session:
+        sponsor = Sponsor.objects.get(pk=request.session['view_user'])
+    else:
+        try:
+            sponsor = request.user.sponsor
+        except Sponsor.DoesNotExist:
+            return JsonResponse({
+                "error": "Sponsor profile not found."
+            }, status=404)
+
+    driver_orgs = DriverOrganization.objects.filter(organization=sponsor.organization)
+    drivers = []
+    for d in driver_orgs:
+        drivers.append(d.driver)
+    template = loader.get_template('sponsor_driver_list.html')
+    context = {
+        'drivers': drivers,
+    }
+    if 'view_user' in request.session:
+        context['view_as'] = 1
+    return HttpResponse(template.render(context, request))
+
+def set_driver_view(request, driver):
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "You are not logged in."}, status=401)
+    if request.user.user_type != UserType.SPONSOR and not 'view_user' in request.session:
+        return JsonResponse({"error": "You must be a sponsor to perform this."}, status=403)
+    if 'view_user' in request.session:
+        sponsor = Sponsor.objects.get(pk=request.session['view_user'])
+    else:
+        try:
+            sponsor = request.user.sponsor
+        except Sponsor.DoesNotExist:
+            return JsonResponse({
+                "error": "Sponsor profile not found."
+            }, status=404)
+
+    if 'view_user' in request.session:
+        return JsonResponse({"error": "You are already in a view-as state."}, status=403)
+
+    request.session['view_user'] = driver
+    request.session['user_type'] = 'driver'
+    return HttpResponseRedirect(reverse('accounts:driver_homepage'))
+
+def remove_view_as(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "You are not logged in."}, status=401)
+    if request.user.user_type != UserType.SPONSOR:
+        return JsonResponse({"error": "You must be a sponsor to perform this."}, status=403)
+    try:
+        sponsor = request.user.sponsor
+    except Sponsor.DoesNotExist:
+        return JsonResponse({"error": "Sponsor profile not found."}, status=404)
+
+    del request.session['view_user']
+    del request.session['user_type']
+    return HttpResponseRedirect(reverse('accounts:sponsor_homepage'))
 
 #show import progresse
 @require_GET

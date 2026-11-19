@@ -12,6 +12,7 @@ urlpatterns = [
     path("api/auth/csrf/", views.api_csrf, name="api_csrf"),
     path("api/auth/register/", views.api_register, name="api_register"),
     path("api/auth/login/", views.api_login, name="api_login"),
+    path("api/auth/mfa/verify/", views.api_verify_mfa, name="api_verify_mfa"),
     path("api/auth/logout/", views.api_logout, name="api_logout"),
     path("api/auth/me/", views.api_current_user, name="api_current_user"),
     path("api/auth/profile/", views.api_profile),
@@ -122,22 +123,15 @@ urlpatterns = [
         name="change_password",
     ),
 
-    # Existing home pages
-    path(
-        "driverhome/",
-        views.driver_homepage,
-        name="driver_homepage",
-    ),
-    path(
-        "sponsorhome/",
-        views.sponsor_homepage,
-        name="sponsor_homepage",
-    ),
-    path(
-        "adminhome/",
-        views.admin_homepage,
-        name="admin_homepage",
-    ),
+    #existing home pages
+    path("driverhome/", views.driver_homepage, name="driver_homepage"),
+    path("sponsorhome/", views.sponsor_homepage, name="sponsor_homepage"),
+    path("adminhome/", views.admin_homepage, name="admin_homepage"),
+
+    #sponsor view-as driver
+    path("sponsor/listdrivers/", views.org_driver_list_page, name="org_driver_list_page"),
+    path("sponsor/setdriverview/<int:driver>/", views.set_driver_view, name="set_driver_view"),
+    path("sponsor/removeview/", views.remove_view_as, name="remove_view_as"),
 
     # Temporary password for emailed account setup
     path(

@@ -4,5 +4,7 @@
     <h2>Welcome, {{ username }}</h2>
     <h3>Check the status of the website:</h3>
     <h3>Check the status of website users:</h3>
+    <a href="{% url 'tempadmin:driver_list_page' %}"><button type="button">Manage Drivers</button></a>
+    <a href="{% url 'tempadmin:sponsor_list_page' %}"><button type="button">Manage Sponsors</button></a>
 </body>
 </html>
