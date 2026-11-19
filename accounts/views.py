@@ -1583,14 +1583,14 @@ def api_audit_logs(request):
             "timestamp": log.timestamp,
         })
 
-        response = JsonResponse({
-            "logs": log_list,
-            "page": page.number,
-            "total_pages": paginator.num_pages,
-            "total_logs": paginator.count,
-        })
-        response["Cache-Control"] = "no-store"
-        return response
+    response = JsonResponse({
+        "logs": log_list,
+        "page": page.number,
+        "total_pages": paginator.num_pages,
+        "total_logs": paginator.count,
+    })
+    response["Cache-Control"] = "no-store"
+    return response
 
 #download logs matching filters
 @require_GET
@@ -1627,4 +1627,4 @@ def api_audit_logs_download(request):
             csv_text(log.description),
             log.timestamp.isoformat(),
         ])
-        return response
+    return response
