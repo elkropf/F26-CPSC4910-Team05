@@ -1,6 +1,6 @@
 
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { apiRequest } from "../api";
 
 function getItems(data) {
@@ -87,6 +87,7 @@ export function HomePage({ user }) {
 
   const actions = {
     driver: [
+      ["My Profile", "/driver/profile"],
       ["Apply to a sponsor", "/driver/apply"],
       ["My applications", "/driver/applications"],
       ["Stores", "/driver/stores"],
@@ -283,16 +284,41 @@ export function PendingApplications() {
 }
 
 
+
+
 export function PointsPage() {
-  const [driverId, setDriverId] = useState("");
-  const [change, setChange] = useState("");
+  const [searchParams] = useSearchParams();
+  const selectedFromLink = searchParams.get("driver") || "";
+
+  const { data: drivers, error, loading, refresh } =
+    useRecords("/api/points/sponsor/");
+
+  const [driverId, setDriverId] = useState(selectedFromLink);
+  const [points, setPoints] = useState("");
   const [reason, setReason] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
+  useEffect(() => {
+    setDriverId(selectedFromLink);
+  }, [selectedFromLink]);
+
+  const driver = drivers.find(
+    d => String(d.driver_id) === String(driverId)
+  );
+
   async function submit(e) {
     e.preventDefault();
     setMessage("");
+
+    const amount = Number(points);
+
+    if (!driverId || !Number.isInteger(amount) ||
+        amount === 0 || !reason.trim()) {
+      setMessage("Please fill out all fields correctly.");
+      return;
+    }
+
     setBusy(true);
 
     try {
@@ -300,13 +326,15 @@ export function PointsPage() {
         `/api/drivers/${driverId}/points/change/`,
         "POST",
         {
-          points_changed: Number(change),
-          reason: reason.trim(),
+          points_changed: amount,
+          reason: reason.trim()
         }
       );
-      setMessage("Points request completed.");
-      setChange("");
+
+      setMessage("Points updated successfully.");
+      setPoints("");
       setReason("");
+      refresh();
     } catch (err) {
       setMessage(err.message);
     } finally {
@@ -319,40 +347,62 @@ export function PointsPage() {
       <h1>Manage Driver Points</h1>
 
       <div className="card">
-        <form onSubmit={submit}>
-          <label>Driver ID</label>
-          <input
-            type="number"
-            min="1"
-            required
-            value={driverId}
-            onChange={e => setDriverId(e.target.value)}
-          />
+        {loading && <p>Loading drivers...</p>}
+        {error && <p className="error">{error}</p>}
 
-          <label>Points change (+ or -)</label>
-          <input
-            type="number"
-            required
-            value={change}
-            onChange={e => setChange(e.target.value)}
-          />
+        {!loading && !error && (
+          <form onSubmit={submit}>
+            <label>Select Driver</label>
+            <select
+              value={driverId}
+              onChange={e => setDriverId(e.target.value)}
+              required
+            >
+              <option value="">Select a driver</option>
+              {drivers.map(d => (
+                <option key={d.driver_id} value={d.driver_id}>
+                  {d.username}
+                </option>
+              ))}
+            </select>
 
-          <label>Reason</label>
-          <textarea
-            value={reason}
-            onChange={e => setReason(e.target.value)}
-          />
+            {driver && (
+              <p>
+                Current Points: {driver.points_balance}
+              </p>
+            )}
 
-          <button disabled={busy || Number(change) === 0}>
-            {busy ? "Saving..." : "Update Points"}
-          </button>
-        </form>
+            <label>Points to Add or Remove</label>
+            <input
+              type="number"
+              step="1"
+              value={points}
+              onChange={e => setPoints(e.target.value)}
+              placeholder="100 or -100"
+              required
+            />
 
-        {message && <p role="status">{message}</p>}
+            <label>Reason</label>
+            <textarea
+              value={reason}
+              onChange={e => setReason(e.target.value)}
+              placeholder="Enter reason"
+              required
+            />
+
+            <button type="submit" disabled={busy}>
+              {busy ? "Saving..." : "Update Points"}
+            </button>
+          </form>
+        )}
+
+        {message && <p>{message}</p>}
       </div>
     </section>
   );
 }
+
+
 
 export function FeaturePage({ title, description }) {
   return (
@@ -364,6 +414,70 @@ export function FeaturePage({ title, description }) {
           The React page exists. Its data API still needs to be connected.
         </p>
       </div>
+    </section>
+  );
+}
+
+
+export function SponsorDriversPage() {
+  const {
+    data: drivers,
+    error,
+    loading,
+    refresh
+  } = useRecords("/api/points/sponsor/");
+
+  return (
+    <section>
+      <div className="page-heading">
+        <h1>Sponsored Drivers</h1>
+        <button onClick={refresh}>Refresh</button>
+      </div>
+
+      <p>Total Drivers: {drivers.length}</p>
+
+      {loading && <p>Loading drivers...</p>}
+      {error && <p className="error">{error}</p>}
+
+      {!loading && !error && (
+        <div className="card">
+          {drivers.length === 0 ? (
+            <p>No sponsored drivers found.</p>
+          ) : (
+            <div className="drivers-table-wrap">
+              <table className="drivers-table">
+                <thead>
+                  <tr>
+                    <th>Driver Name</th>
+                    <th>Username</th>
+                    <th>Points</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {drivers.map(driver => (
+                    <tr key={driver.driver_id}>
+                      <td>{driver.name}</td>
+                      <td>{driver.username}</td>
+                      <td>
+                        {Number(
+                          driver.points_balance ?? 0
+                        ).toLocaleString()}
+                      </td>
+                      <td>
+                        <Link to={`/sponsor/points?driver=${driver.driver_id}`}>
+                          Manage Points
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
     </section>
   );
 }

@@ -5,7 +5,7 @@ import RegisterPage from "./pages/RegisterPage.jsx";
 
 import CatalogPage from "./pages/CatalogPage";
 import SponsorEbayPage from "./pages/SponsorEbayPage";
-import EbayCatalog from "./EbayCatalog";
+import ProfilePage from "./pages/ProfilePage";
 import AdminPanel from "./pages/AdminPanel";
 import AboutPage from "./pages/AboutPage";
 
@@ -28,7 +28,7 @@ import {
   ApplyPage,
   PendingApplications,
   PointsPage,
-  FeaturePage,
+  SponsorDriversPage,
 } from "./pages/RolePages";
 
 import "./App.css";
@@ -41,6 +41,7 @@ function homePath(role) {
   if (role === "driver") return "/driver/home";
   if (role === "sponsor") return "/sponsor/home";
   if (role === "admin") return "/admin/dashboard";
+
   return "/login";
 }
 
@@ -66,6 +67,7 @@ function LoginPage({ onLogin }) {
 
   async function submit(e) {
     e.preventDefault();
+
     setError("");
     setBusy(true);
 
@@ -85,8 +87,10 @@ function LoginPage({ onLogin }) {
       }
 
       onLogin(user);
+
     } catch (err) {
       setError(err.message);
+
     } finally {
       setBusy(false);
     }
@@ -127,7 +131,9 @@ function LoginPage({ onLogin }) {
 
         <p>
           Don't have an account?{" "}
-          <NavLink to="/register">Register here</NavLink>
+          <NavLink to="/register">
+            Register here
+          </NavLink>
         </p>
       </div>
     </div>
@@ -179,9 +185,15 @@ function AppContent() {
 
   useEffect(() => {
     apiRequest("/api/auth/me/")
-      .then((data) => setUser(normalizeUser(data)))
-      .catch(() => setUser(null))
-      .finally(() => setLoading(false));
+      .then((data) => {
+        setUser(normalizeUser(data));
+      })
+      .catch(() => {
+        setUser(null);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, []);
 
   async function logout() {
@@ -214,7 +226,7 @@ function AppContent() {
       <Routes>
 
         {/* =====================================
-            LOGIN
+            LOGIN AND REGISTRATION
         ===================================== */}
 
         <Route
@@ -231,10 +243,6 @@ function AppContent() {
           }
         />
 
-        {/* =====================================
-            REGISTER
-        ===================================== */}
-
         <Route
           path="/register"
           element={
@@ -250,7 +258,7 @@ function AppContent() {
         />
 
         {/* =====================================
-            PROTECTED ROUTES
+            PROTECTED PAGES
         ===================================== */}
 
         <Route
@@ -291,6 +299,11 @@ function AppContent() {
             />
 
             <Route
+              path="/driver/profile"
+              element={<ProfilePage />}
+            />
+
+            <Route
               path="/driver/apply"
               element={<ApplyPage />}
             />
@@ -305,12 +318,9 @@ function AppContent() {
               }
             />
 
-            {/* DRIVER CATALOG - RESTORED */}
             <Route
               path="/driver/stores"
-              element={
-                <CatalogPage role="driver" />
-              }
+              element={<CatalogPage role="driver" />}
             />
 
           </Route>
@@ -340,12 +350,7 @@ function AppContent() {
 
             <Route
               path="/sponsor/drivers"
-              element={
-                <FeaturePage
-                  title="Sponsored Drivers"
-                  description="Display the drivers connected to this sponsor."
-                />
-              }
+              element={<SponsorDriversPage />}
             />
 
             <Route
@@ -353,18 +358,11 @@ function AppContent() {
               element={<PointsPage />}
             />
 
-            {/* SPONSOR CATALOG - RESTORED */}
             <Route
               path="/sponsor/stores"
-              element={
-                <>
-                  <SponsorEbayPage />
-                  <EbayCatalog />
-                </>
-              }
+              element={<SponsorEbayPage />}
             />
 
-            {/* SPONSOR EBAY SEARCH */}
             <Route
               path="/sponsor/ebay"
               element={<SponsorEbayPage />}
@@ -385,7 +383,6 @@ function AppContent() {
             }
           >
 
-            {/* ADMIN DASHBOARD */}
             <Route
               path="/admin/dashboard"
               element={
@@ -393,7 +390,6 @@ function AppContent() {
               }
             />
 
-            {/* SPONSOR MANAGEMENT */}
             <Route
               path="/admin/sponsors"
               element={
@@ -401,7 +397,6 @@ function AppContent() {
               }
             />
 
-            {/* DRIVER MANAGEMENT */}
             <Route
               path="/admin/drivers"
               element={
@@ -409,7 +404,6 @@ function AppContent() {
               }
             />
 
-            {/* ACCOUNT PREVIEW */}
             <Route
               path="/admin/sponsor-preview"
               element={
@@ -417,7 +411,6 @@ function AppContent() {
               }
             />
 
-            {/* ADMIN ACCOUNT MANAGEMENT */}
             <Route
               path="/admin/admins"
               element={
@@ -425,7 +418,6 @@ function AppContent() {
               }
             />
 
-            {/* ADMIN REPORTS */}
             <Route
               path="/admin/reports"
               element={
@@ -447,7 +439,7 @@ function AppContent() {
         </Route>
 
         {/* =====================================
-            FALLBACK ROUTE
+            FALLBACK
         ===================================== */}
 
         <Route
