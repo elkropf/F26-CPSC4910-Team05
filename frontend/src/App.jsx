@@ -2,12 +2,15 @@
 import AppLayout from "./layouts/AppLayout";
 import Navbar from "./components/NavBar";
 import RegisterPage from "./pages/RegisterPage.jsx";
+
 import CatalogPage from "./pages/CatalogPage";
 import SponsorEbayPage from "./pages/SponsorEbayPage";
 import ProfilePage from "./pages/ProfilePage";
+import AdminPanel from "./pages/AdminPanel";
 import AboutPage from "./pages/AboutPage";
 
 import { useEffect, useState } from "react";
+
 import {
   BrowserRouter,
   Routes,
@@ -25,16 +28,20 @@ import {
   ApplyPage,
   PendingApplications,
   PointsPage,
-  FeaturePage,
   SponsorDriversPage,
 } from "./pages/RolePages";
 
 import "./App.css";
 
+// =====================================
+// USER ROLE ROUTING
+// =====================================
+
 function homePath(role) {
   if (role === "driver") return "/driver/home";
   if (role === "sponsor") return "/sponsor/home";
   if (role === "admin") return "/admin/dashboard";
+
   return "/login";
 }
 
@@ -48,6 +55,10 @@ function normalizeUser(data) {
   return user;
 }
 
+// =====================================
+// LOGIN PAGE
+// =====================================
+
 function LoginPage({ onLogin }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -56,6 +67,7 @@ function LoginPage({ onLogin }) {
 
   async function submit(e) {
     e.preventDefault();
+
     setError("");
     setBusy(true);
 
@@ -75,8 +87,10 @@ function LoginPage({ onLogin }) {
       }
 
       onLogin(user);
+
     } catch (err) {
       setError(err.message);
+
     } finally {
       setBusy(false);
     }
@@ -90,18 +104,20 @@ function LoginPage({ onLogin }) {
 
         <form onSubmit={submit}>
           <label>Username</label>
+
           <input
             value={username}
-            onChange={e => setUsername(e.target.value)}
+            onChange={(e) => setUsername(e.target.value)}
             autoComplete="username"
             required
           />
 
           <label>Password</label>
+
           <input
             type="password"
             value={password}
-            onChange={e => setPassword(e.target.value)}
+            onChange={(e) => setPassword(e.target.value)}
             autoComplete="current-password"
             required
           />
@@ -115,12 +131,18 @@ function LoginPage({ onLogin }) {
 
         <p>
           Don't have an account?{" "}
-          <NavLink to="/register">Register here</NavLink>
+          <NavLink to="/register">
+            Register here
+          </NavLink>
         </p>
       </div>
     </div>
   );
 }
+
+// =====================================
+// PROTECTED LAYOUT
+// =====================================
 
 function ProtectedLayout({ user, logout }) {
   if (!user) {
@@ -135,6 +157,10 @@ function ProtectedLayout({ user, logout }) {
   );
 }
 
+// =====================================
+// ROLE GUARD
+// =====================================
+
 function RoleGuard({ user, required }) {
   if (user?.user_type !== required) {
     return (
@@ -148,6 +174,10 @@ function RoleGuard({ user, required }) {
   return <Outlet />;
 }
 
+// =====================================
+// MAIN APP CONTENT
+// =====================================
+
 function AppContent() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -155,9 +185,15 @@ function AppContent() {
 
   useEffect(() => {
     apiRequest("/api/auth/me/")
-      .then(data => setUser(normalizeUser(data)))
-      .catch(() => setUser(null))
-      .finally(() => setLoading(false));
+      .then((data) => {
+        setUser(normalizeUser(data));
+      })
+      .catch(() => {
+        setUser(null);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, []);
 
   async function logout() {
@@ -188,23 +224,42 @@ function AppContent() {
       )}
 
       <Routes>
+
+        {/* =====================================
+            LOGIN AND REGISTRATION
+        ===================================== */}
+
         <Route
           path="/login"
           element={
-            user
-              ? <Navigate to={homePath(role)} replace />
-              : <LoginPage onLogin={setUser} />
+            user ? (
+              <Navigate
+                to={homePath(role)}
+                replace
+              />
+            ) : (
+              <LoginPage onLogin={setUser} />
+            )
           }
         />
 
         <Route
           path="/register"
           element={
-            user
-              ? <Navigate to={homePath(role)} replace />
-              : <RegisterPage onRegistered={setUser} />
+            user ? (
+              <Navigate
+                to={homePath(role)}
+                replace
+              />
+            ) : (
+              <RegisterPage onRegistered={setUser} />
+            )
           }
         />
+
+        {/* =====================================
+            PROTECTED PAGES
+        ===================================== */}
 
         <Route
           element={
@@ -214,6 +269,7 @@ function AppContent() {
             />
           }
         >
+
           <Route
             path="/"
             element={
@@ -224,7 +280,9 @@ function AppContent() {
             }
           />
 
-          {/* DRIVER ROUTES */}
+          {/* =====================================
+              DRIVER ROUTES
+          ===================================== */}
 
           <Route
             element={
@@ -234,11 +292,12 @@ function AppContent() {
               />
             }
           >
+
             <Route
               path="/driver/home"
               element={<HomePage user={user} />}
             />
-            
+
             <Route
               path="/driver/profile"
               element={<ProfilePage />}
@@ -263,9 +322,12 @@ function AppContent() {
               path="/driver/stores"
               element={<CatalogPage role="driver" />}
             />
+
           </Route>
 
-          {/* SPONSOR ROUTES */}
+          {/* =====================================
+              SPONSOR ROUTES
+          ===================================== */}
 
           <Route
             element={
@@ -275,6 +337,7 @@ function AppContent() {
               />
             }
           >
+
             <Route
               path="/sponsor/home"
               element={<HomePage user={user} />}
@@ -295,15 +358,21 @@ function AppContent() {
               element={<PointsPage />}
             />
 
-            {/* Existing sponsor catalog + new eBay search */}
-
             <Route
               path="/sponsor/stores"
               element={<SponsorEbayPage />}
             />
+
+            <Route
+              path="/sponsor/ebay"
+              element={<SponsorEbayPage />}
+            />
+
           </Route>
 
-          {/* ADMIN ROUTES */}
+          {/* =====================================
+              ADMIN ROUTES
+          ===================================== */}
 
           <Route
             element={
@@ -313,51 +382,88 @@ function AppContent() {
               />
             }
           >
+
             <Route
               path="/admin/dashboard"
-              element={<HomePage user={user} />}
+              element={
+                <AdminPanel view="dashboard" />
+              }
             />
 
             <Route
               path="/admin/sponsors"
               element={
-                <FeaturePage
-                  title="Manage Sponsors"
-                  description="View and update sponsor accounts and permissions."
-                />
+                <AdminPanel view="sponsors" />
+              }
+            />
+
+            <Route
+              path="/admin/drivers"
+              element={
+                <AdminPanel view="drivers" />
               }
             />
 
             <Route
               path="/admin/sponsor-preview"
               element={
-                <FeaturePage
-                  title="Sponsor Preview"
-                  description="View the application from a sponsor's perspective."
-                />
+                <AdminPanel view="preview" />
               }
             />
+
+            <Route
+              path="/admin/admins"
+              element={
+                <AdminPanel view="admins" />
+              }
+            />
+
+            <Route
+              path="/admin/reports"
+              element={
+                <AdminPanel view="reports" />
+              }
+            />
+
           </Route>
 
+          {/* =====================================
+              ABOUT PAGE
+          ===================================== */}
+
           <Route
-            path="/app/about"
+            path="/about"
             element={<AboutPage />}
           />
+
         </Route>
+
+        {/* =====================================
+            FALLBACK
+        ===================================== */}
 
         <Route
           path="*"
           element={
             <Navigate
-              to={user ? homePath(role) : "/login"}
+              to={
+                user
+                  ? homePath(role)
+                  : "/login"
+              }
               replace
             />
           }
         />
+
       </Routes>
     </>
   );
 }
+
+// =====================================
+// MAIN APPLICATION
+// =====================================
 
 export default function App() {
   return (
@@ -366,4 +472,3 @@ export default function App() {
     </BrowserRouter>
   );
 }
-

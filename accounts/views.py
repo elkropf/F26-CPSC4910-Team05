@@ -1,3 +1,5 @@
+from django.core.validators import validate_email
+from django.views.decorators.http import require_http_methods
 import json
 
 from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
@@ -11,8 +13,6 @@ from django.template import loader
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST
-from django.views.decorators.http import require_http_methods
-from django.core.validators import validate_email
 
 from .models import (Application, ApplicationStatus, BulkImportJob, Driver, DriverOrganization, Organization, Points, User, UserType, Sponsor, pointLog,)
 from django.utils import timezone
@@ -240,22 +240,23 @@ def api_verify_mfa(request):
 
 #end current user session
 @require_POST
-#end current user session
-@require_POST
 def api_logout(request):
-    user = request.user
+    actor = request.user if request.user.is_authenticated else None
+
+    if actor is not None:
+        record_event(
+            action="user.logged_out",
+            actor=actor,
+            record_type="user",
+            record_id=actor.id,
+            description=f"User '{actor.username}' logged out."
+        )
 
     auth_logout(request)
 
-    record_event(
-        action="user.logged_out",
-        actor=user,
-        record_type="user",
-        record_id=user.id,
-        description=f"User '{user.username}' logged out."
-    )
-
-    return JsonResponse({"detail": "Logged out successfully."})
+    return JsonResponse({
+        "detail": "Logged out successfully."
+    })
 
 #return currentuser signed in info
 @require_GET
@@ -587,6 +588,14 @@ def api_review_application(request, application_id):
             driver = Driver.objects.select_for_update().get(
                 id=application.driver_id
             )
+            if DriverOrganization.objects.filter(
+                driver=driver
+            ).exclude(
+                organization_id=application.organization_id
+            ).exists():
+                return JsonResponse({
+                    "error": "Driver already belongs to another sponsor."
+                }, status=409)
             DriverOrganization.objects.get_or_create(
                 driver=driver,
                 organization_id=application.organization_id,
