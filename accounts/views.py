@@ -1295,6 +1295,19 @@ def api_notification_read(request, notification_id):
 
 # Existing server-rendered pages.
 
+#main page
+def main_page(request):
+    if request.user.is_authenticated:
+        if request.user.user_type == UserType.ADMIN:
+            return admin_homepage(request)
+        elif request.user.user_type == UserType.SPONSOR:
+            return sponsor_homepage(request)
+        else:
+            return driver_homepage(request)
+
+    template = loader.get_template("main_page.html")
+    return HttpResponse(template.render())
+
 #display application form
 def app_page(request):
     template = loader.get_template("application.html")
