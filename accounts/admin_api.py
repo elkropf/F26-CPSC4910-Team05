@@ -280,8 +280,12 @@ def preview(request, role, user_id):
 
 
 @require_POST
-@admin_only
 def send_driver_reset(request, driver_id):
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Login required."}, status=401)
+    if not request.user.is_active or request.user.user_type == UserType.DRIVER:
+        return JsonResponse({"error": "You do not have permission to do this."}, status=403)
+
     try:
         driver = Driver.objects.select_related("user").get(pk=driver_id)
     except Driver.DoesNotExist:
@@ -298,23 +302,27 @@ def send_driver_reset(request, driver_id):
     try:
         send_mail(
             "Reset your Good Driver Incentive password",
-            f"Hello {user.username},\n\nAn administrator requested a password reset. "
+            f"Hello {user.username},\n\nA sponsor or administrator requested a password reset. "
             f"Use this link to choose a new password:\n{url}\n\n"
-            "If you did not expect this, contact your administrator.",
+            "If you did not expect this, contact your sponsor.",
             None, [user.email], fail_silently=False,
         )
     except Exception:
         # No reset token or sensitive mail-server configuration is sent to the browser.
         return error("Password reset email could not be sent. Check email configuration.", 503)
-    record_event(action="admin.driver_password_reset_sent", actor=request.user,
+    recorded_action = "admin.driver_password_reset_sent" if request.user.user_type == UserType.ADMIN else "sponsor.driver_password_reset_sent"
+    record_event(action=recorded_action, actor=request.user,
                  record_type="driver", record_id=driver.pk,
                  description=f"Password reset requested for {user.username}.")
     return JsonResponse({"message": "Password reset email sent."})
 
 
 @require_POST
-@admin_only
 def account_status(request, user_id):
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Login required."}, status=401)
+    if not request.user.is_active or request.user.user_type == UserType.DRIVER:
+        return JsonResponse({"error": "You do not have permission to do this."}, status=403)
     data = payload(request)
     if data is None or not isinstance(data.get("active"), bool):
         return error("active must be true or false.")
@@ -326,28 +334,34 @@ def account_status(request, user_id):
         return error("You cannot deactivate yourself.")
     user.is_active = data["active"]
     user.save(update_fields=["is_active"])
-    record_event(action="admin.account_status_changed", actor=request.user,
+    recorded_action = "admin.account_status_changed" if request.user.user_type == UserType.ADMIN else "sponsor.account_status_changed"
+    record_event(action=recorded_action, actor=request.user,
                  record_type="user", record_id=user.pk,
                  description=f"Set {user.username} active={user.is_active}.")
     return JsonResponse({"user": user_info(user)})
 
 
 @require_POST
-@admin_only
 def delete_account(request, user_id):
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Login required."}, status=401)
+    if not request.user.is_active or request.user.user_type == UserType.DRIVER:
+        return JsonResponse({"error": "You do not have permission to do this."}, status=403)
+
     try:
         user = User.objects.get(pk=user_id)
     except User.DoesNotExist:
         return error("User not found.", 404)
     if user.pk == request.user.pk:
-        return error("Cannot delete your own admin account.")
+        return error("Cannot delete your own account.")
     if user.user_type not in (UserType.DRIVER, UserType.SPONSOR):
         return error("Only driver and sponsor accounts may be deleted here.", 403)
     username = user.username
     try:
         with transaction.atomic():
             user.delete()
-            record_event(action="admin.account_deleted", actor=request.user,
+            recorded_action = "admin.account_deleted" if request.user.user_type == UserType.ADMIN else "sponsor.account_deleted"
+            record_event(action=recorded_action, actor=request.user,
                          record_type="user", record_id=user_id,
                          description=f"Deleted {username} ({user_id}).")
     except ProtectedError:

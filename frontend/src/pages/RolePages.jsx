@@ -430,6 +430,31 @@ export function SponsorDriversPage() {
     refresh
   } = useRecords("/api/points/sponsor/");
 
+  function reset(driver) {
+    if (!window.confirm(`Email a password reset link to ${driver.username}?`)) return;
+    run(async () => {
+      const data = await apiRequest(`/api/admin/drivers/${driver.driver_id}/reset-password/`, "POST");
+      setMessage(data.message);
+    });
+  }
+
+  function deactivate(driver) {
+    if (!window.confirm(`${driver.is_active ? "Deactivate" : "Reactivate"} ${driver.username}?`)) return;
+    run(async () => {
+      await apiRequest(`/api/admin/users/${driver.id}/status/`, "POST", { active: !driver.is_active });
+      setMessage(`Updated ${driver.username}.`);
+    });
+  }
+  
+  function remove(driver) {
+    const typed = window.prompt(`Delete driver ${driver.username} permanently? Type the username to confirm:`);
+    if (typed !== driver.username) return;
+    run(async () => {
+      await apiRequest(`/api/admin/users/${driver.id}/delete/`, "POST");
+      setMessage(`Deleted ${driver.username}.`);
+    });
+  }
+
   return (
     <section>
       <div className="page-heading">
@@ -472,6 +497,9 @@ export function SponsorDriversPage() {
                         <Link to={`/sponsor/points?driver=${driver.driver_id}`}>
                           Manage Points
                         </Link>
+                        <button disabled={busy} onClick={() => reset(d)}>Send Password Reset</button>
+                        <button disabled={busy} onClick={() => deactivate(d)}>{d.is_active ? "Deactivate" : "Activate"}</button>
+                        <button disabled={busy} className="danger" onClick={() => remove(d)}>Delete</button>
                       </td>
                     </tr>
                   ))}
