@@ -8,6 +8,8 @@ from . import admin_api
 app_name = "accounts"
 
 urlpatterns = [
+    path("", views.main_page, name="main_page"),
+
     # JSON authentication API for React
     path("api/auth/csrf/", views.api_csrf, name="api_csrf"),
     path("api/auth/register/", views.api_register, name="api_register"),

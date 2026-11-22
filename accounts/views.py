@@ -1295,6 +1295,19 @@ def api_notification_read(request, notification_id):
 
 # Existing server-rendered pages.
 
+#main page
+def main_page(request):
+    if request.user.is_authenticated:
+        if request.user.user_type == UserType.ADMIN:
+            return admin_homepage(request)
+        elif request.user.user_type == UserType.SPONSOR:
+            return sponsor_homepage(request)
+        else:
+            return driver_homepage(request)
+
+    template = loader.get_template("main_page.html")
+    return HttpResponse(template.render())
+
 #display application form
 def app_page(request):
     template = loader.get_template("application.html")
@@ -1745,14 +1758,14 @@ def api_audit_logs(request):
             "timestamp": log.timestamp,
         })
 
-        response = JsonResponse({
-            "logs": log_list,
-            "page": page.number,
-            "total_pages": paginator.num_pages,
-            "total_logs": paginator.count,
-        })
-        response["Cache-Control"] = "no-store"
-        return response
+    response = JsonResponse({
+        "logs": log_list,
+        "page": page.number,
+        "total_pages": paginator.num_pages,
+        "total_logs": paginator.count,
+    })
+    response["Cache-Control"] = "no-store"
+    return response
 
 #download logs matching filters
 @require_GET
@@ -1789,4 +1802,4 @@ def api_audit_logs_download(request):
             csv_text(log.description),
             log.timestamp.isoformat(),
         ])
-        return response
+    return response
