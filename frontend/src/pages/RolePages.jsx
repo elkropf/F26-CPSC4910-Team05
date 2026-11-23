@@ -85,6 +85,16 @@ export function DataPage({ title, url }) {
 export function HomePage({ user }) {
   const role = user.user_type;
 
+  const [pointAmt, setPointAmt] = useState(null);
+
+  useEffect(() => {
+    if (role !== "driver") return;
+
+    apiRequest("/api/catalog/points/")
+      .then(data => setPointAmt(data.points))
+      .catch(() => setPointAmt("Unavailable"));
+  }, [role]);
+
   const actions = {
     driver: [
       ["My Profile", "/driver/profile"],
@@ -103,9 +113,7 @@ export function HomePage({ user }) {
       ["About", "/about"],
     ],
   };
-  if (role === "driver") {
-    const pointAmt = await apiRequest("/api/catalog/points/").points;
-  }
+  
   
   return (
     <section>
