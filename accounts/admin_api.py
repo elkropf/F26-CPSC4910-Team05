@@ -105,7 +105,7 @@ def directory(request):
         "sponsors": [sponsor_info(s) for s in sponsors],
         "drivers": [driver_info(d) for d in drivers],
         "admins": [user_info(a.user) for a in admins],
-        "organizations": [{"id": o.pk, "name": o.organization_name, "description": o.organization_description
+        "organizations": [{"id": o.pk, "name": o.organization_name, "description": o.organization,
                            "is_active": o.is_active} for o in organizations],
     })
 
@@ -162,6 +162,54 @@ def edit_user(request, user_id):
     )
 
     return JsonResponse({"user": user_info(user)})
+
+
+@require_POST
+@admin_only
+def edit_organization(request, organization_id):
+    data = payload(request)
+
+    if data is None:
+        return error("Invalid JSON.")
+
+    try:
+        org = Organization.objects.get(id=organization_id)
+    except Organization.DoesNotExist:
+        return error("Organization not found.", 404)
+
+    name = data.get("name", "")
+    description = data.get("description", "")
+
+    if not isinstance(name, str) or not isinstance(description, str):
+        return error("Invalid information.")
+
+    name = name.strip()
+    description = description.strip()
+
+    if not name:
+        return error("Organization name is required.")
+
+    if Organization.objects.filter(
+        organization_name__iexact=name
+    ).exclude(id=organization_id).exists():
+        return error("Organization name already exists.")
+
+    org.organization_name = name
+    org.organization_description = description
+    org.save()
+
+    record_event(
+        action="admin.organization_updated",
+        actor=request.user,
+        organization=org,
+        record_type="organization",
+        record_id=org.id,
+        description=f"Updated organization {name}."
+    )
+
+    return JsonResponse({
+        "message": "Organization updated."
+    })
 
 
 
