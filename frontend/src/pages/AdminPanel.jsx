@@ -77,20 +77,34 @@ function Dashboard() {
   );
 }
 
+
 function Sponsors() {
   const { sponsors, organizations, loading, error, load } = useDirectory();
-  const [form, setForm] = useState({ ...blankUser, organization_id: "", organization_name: "" });
+
+  const [form, setForm] = useState({
+    ...blankUser,
+    organization_id: "",
+    organization_name: ""
+  });
+
   const [fees, setFees] = useState({});
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [actionError, setActionError] = useState(false);
+
+  const [editingId, setEditingId] = useState(null);
+  const [editData, setEditData] = useState({});
+
   useEffect(() => {
-    setFees(Object.fromEntries(sponsors.map(s => [s.sponsor_id, s.fee_percentage])));
+    setFees(Object.fromEntries(
+      sponsors.map(s => [s.sponsor_id, s.fee_percentage])
+    ));
   }, [sponsors]);
 
   async function run(fn) {
     setBusy(true);
     setMessage("");
+
     try {
       await fn();
       setActionError(false);
@@ -103,92 +117,264 @@ function Sponsors() {
     }
   }
 
-  function create(event) {
-    event.preventDefault();
+  function create(e) {
+    e.preventDefault();
+
     run(async () => {
-      const result = await apiRequest("/api/admin/sponsors/create/", "POST", {
-        ...form,
-        organization_id: form.organization_id || null,
-      });
+      const result = await apiRequest(
+        "/api/admin/sponsors/create/",
+        "POST",
+        {
+          ...form,
+          organization_id: form.organization_id || null
+        }
+      );
+
       setMessage(`Created sponsor ${result.sponsor.username}.`);
-      setForm({ ...blankUser, organization_id: "", organization_name: "" });
+
+      setForm({
+        ...blankUser,
+        organization_id: "",
+        organization_name: ""
+      });
     });
   }
 
   function saveFee(sponsor) {
     run(async () => {
-      await apiRequest(`/api/admin/sponsors/${sponsor.sponsor_id}/fee/`, "POST", {
-        fee_percentage: fees[sponsor.sponsor_id],
-      });
+      await apiRequest(
+        `/api/admin/sponsors/${sponsor.sponsor_id}/fee/`,
+        "POST",
+        {
+          fee_percentage: fees[sponsor.sponsor_id]
+        }
+      );
+
       setMessage(`Updated fee for ${sponsor.username}.`);
     });
   }
 
   function setActive(user) {
     const action = user.is_active ? "deactivate" : "activate";
-    if (!window.confirm(`Are you sure you want to ${action} ${user.username}?`)) return;
+
+    if (!window.confirm(`Are you sure you want to ${action} ${user.username}?`)) {
+      return;
+    }
+
     run(async () => {
-      await apiRequest(`/api/admin/users/${user.id}/status/`, "POST", { active: !user.is_active });
-      setMessage(`${user.username} ${user.is_active ? "deactivated" : "activated"}.`);
+      await apiRequest(
+        `/api/admin/users/${user.id}/status/`,
+        "POST",
+        { active: !user.is_active }
+      );
+
+      setMessage(`${user.username} updated.`);
     });
   }
 
   function remove(user) {
-    const typed = window.prompt(`Delete sponsor ${user.username} permanently? Type the username to confirm:`);
+    const typed = window.prompt(
+      `Delete sponsor ${user.username} permanently? Type the username to confirm:`
+    );
+
     if (typed !== user.username) return;
+
     run(async () => {
-      await apiRequest(`/api/admin/users/${user.id}/delete/`, "POST");
+      await apiRequest(
+        `/api/admin/users/${user.id}/delete/`,
+        "POST"
+      );
+
       setMessage(`Deleted ${user.username}.`);
+    });
+  }
+
+  function editSponsor(sponsor) {
+    setEditingId(sponsor.id);
+
+    setEditData({
+      first_name: sponsor.first_name || "",
+      last_name: sponsor.last_name || "",
+      email: sponsor.email || ""
+    });
+  }
+
+  function saveEdit(e, sponsor) {
+    e.preventDefault();
+
+    run(async () => {
+      await apiRequest(
+        `/api/admin/users/${sponsor.id}/edit/`,
+        "POST",
+        editData
+      );
+
+      setEditingId(null);
+      setMessage("Sponsor updated.");
     });
   }
 
   return (
     <section className="admin-panel">
       <h1>Manage Sponsors</h1>
-      <Note message={error} error /><Note message={message} error={actionError} />
+
+      <Note message={error} error />
+      <Note message={message} error={actionError} />
+
       <div className="card">
         <h2>Create a sponsor</h2>
+
         <form onSubmit={create}>
           <NewUserFields form={form} setForm={setForm} />
+
           <div className="admin-form-grid">
-            <label>Existing organization
-              <select value={form.organization_id} onChange={e => setForm({ ...form, organization_id: e.target.value, organization_name: "" })}>
+            <label>
+              Existing organization
+
+              <select
+                value={form.organization_id}
+                onChange={e => setForm({
+                  ...form,
+                  organization_id: e.target.value,
+                  organization_name: ""
+                })}
+              >
                 <option value="">Create a new organization instead</option>
-                {organizations.filter(o => o.is_active).map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+
+                {organizations.filter(o => o.is_active).map(o => (
+                  <option key={o.id} value={o.id}>
+                    {o.name}
+                  </option>
+                ))}
               </select>
             </label>
-            {!form.organization_id && <label>New organization name
-              <input value={form.organization_name} onChange={e => setForm({ ...form, organization_name: e.target.value })} required />
-            </label>}
+
+            {!form.organization_id && (
+              <label>
+                New organization name
+
+                <input
+                  value={form.organization_name}
+                  onChange={e => setForm({
+                    ...form,
+                    organization_name: e.target.value
+                  })}
+                  required
+                />
+              </label>
+            )}
           </div>
+
           <button disabled={busy}>Create Sponsor</button>
         </form>
       </div>
-      <h2>Sponsor accounts</h2>
+
+      <h2>Sponsor Accounts</h2>
+
       {loading && <p>Loading sponsors...</p>}
-      {!loading && sponsors.length === 0 && <p>No sponsors yet.</p>}
+
+      {!loading && sponsors.length === 0 && (
+        <p>No sponsors yet.</p>
+      )}
+
       <div className="admin-stack">
         {sponsors.map(s => (
           <div className="card" key={s.sponsor_id}>
-            <div className="admin-card-header">
-              <div><h3>{s.username}</h3><p>{s.organization || "No organization"} • {s.email || "No email"}</p></div>
-              <span>{s.is_active ? "Active" : "Inactive"}</span>
-            </div>
+
+            <h3>{s.username}</h3>
+            <p>{s.organization || "No organization"}</p>
+            <p>{s.email || "No email"}</p>
+            <p>{s.is_active ? "Active" : "Inactive"}</p>
+
             <label>Fee percentage (1 = 1%)</label>
+
             <div className="admin-actions">
-              <input type="number" min="0" max="100" step="0.01" aria-label={`Fee for ${s.username}`}
+              <input
+                type="number"
+                min="0"
+                max="100"
+                step="0.01"
                 value={fees[s.sponsor_id] ?? ""}
-                onChange={e => setFees({ ...fees, [s.sponsor_id]: e.target.value })} />
-              <button disabled={busy} onClick={() => saveFee(s)}>Save Fee</button>
-              <button disabled={busy} onClick={() => setActive(s)}>{s.is_active ? "Deactivate" : "Activate"}</button>
-              <button disabled={busy} className="danger" onClick={() => remove(s)}>Delete</button>
+                onChange={e => setFees({
+                  ...fees,
+                  [s.sponsor_id]: e.target.value
+                })}
+              />
+
+              <button disabled={busy} onClick={() => saveFee(s)}>
+                Save Fee
+              </button>
+
+              <button disabled={busy} onClick={() => setActive(s)}>
+                {s.is_active ? "Deactivate" : "Activate"}
+              </button>
+
+              <button
+                disabled={busy}
+                className="danger"
+                onClick={() => remove(s)}
+              >
+                Delete
+              </button>
+
+              <button disabled={busy} onClick={() => editSponsor(s)}>
+                Edit
+              </button>
             </div>
+
+            {editingId === s.id && (
+              <form onSubmit={e => saveEdit(e, s)}>
+                <h3>Edit Sponsor</h3>
+
+                <label>First Name</label>
+                <input
+                  value={editData.first_name}
+                  onChange={e => setEditData({
+                    ...editData,
+                    first_name: e.target.value
+                  })}
+                />
+
+                <label>Last Name</label>
+                <input
+                  value={editData.last_name}
+                  onChange={e => setEditData({
+                    ...editData,
+                    last_name: e.target.value
+                  })}
+                />
+
+                <label>Email</label>
+                <input
+                  type="email"
+                  value={editData.email}
+                  onChange={e => setEditData({
+                    ...editData,
+                    email: e.target.value
+                  })}
+                  required
+                />
+
+                <button type="submit" disabled={busy}>
+                  Save
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setEditingId(null)}
+                >
+                  Cancel
+                </button>
+              </form>
+            )}
+
           </div>
         ))}
       </div>
     </section>
   );
 }
+
 
 
 function Drivers() {
