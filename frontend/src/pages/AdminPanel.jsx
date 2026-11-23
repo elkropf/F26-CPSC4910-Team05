@@ -845,6 +845,100 @@ function Admins() {
 }
 
 
+function Organizations() {
+  const { organizations, loading, error, load } = useDirectory();
+
+  const [editingId, setEditingId] = useState(null);
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  function editOrg(org) {
+    setEditingId(org.id);
+    setName(org.name);
+    setDescription(org.description || "");
+    setMessage("");
+  }
+
+  async function saveOrg(e, org) {
+    e.preventDefault();
+    setBusy(true);
+    setMessage("");
+
+    try {
+      await apiRequest(
+        `/api/admin/organizations/${org.id}/edit/`,
+        "POST",
+        { name, description }
+      );
+
+      setMessage("Organization updated.");
+      setEditingId(null);
+      await load();
+    } catch (err) {
+      setMessage(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="admin-panel">
+      <h1>Manage Organizations</h1>
+
+      {error && <p className="error">{error}</p>}
+      {message && <p>{message}</p>}
+      {loading && <p>Loading...</p>}
+
+      <div className="admin-stack">
+        {organizations.map(org => (
+          <div className="card" key={org.id}>
+            <h3>{org.name}</h3>
+            <p>{org.description || "No description"}</p>
+            <p>{org.is_active ? "Active" : "Inactive"}</p>
+
+            <button onClick={() => editOrg(org)}>
+              Edit
+            </button>
+
+            {editingId === org.id && (
+              <form onSubmit={e => saveOrg(e, org)}>
+                <h3>Edit Organization</h3>
+
+                <label>Name</label>
+                <input
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  required
+                />
+
+                <label>Description</label>
+                <textarea
+                  value={description}
+                  onChange={e => setDescription(e.target.value)}
+                />
+
+                <button disabled={busy} type="submit">
+                  Save
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setEditingId(null)}
+                >
+                  Cancel
+                </button>
+              </form>
+            )}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+
 function Reports() {
   const kinds = [
     ["Sponsor accounts and fees", "sponsors"],
