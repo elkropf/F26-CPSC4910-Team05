@@ -5,27 +5,22 @@ const menus = {
   driver: [
     ["Home", "/driver/home"],
     ["Apply", "/driver/apply"],
-    ["Applications", "/driver/applications"],
     ["Stores", "/driver/stores"],
+    ["Orders", "/driver/orders"],
   ],
 
   sponsor: [
     ["Home", "/sponsor/home"],
-    ["Applications", "/sponsor/applications"],
     ["Drivers", "/sponsor/drivers"],
     ["Points", "/sponsor/points"],
     ["Stores", "/sponsor/stores"],
-    ["Orders", "/driver/orders"],
   ],
 
   admin: [
     ["Dashboard", "/admin/dashboard"],
     ["Sponsors", "/admin/sponsors"],
     ["Drivers", "/admin/drivers"],
-    ["Sponsor Preview", "/admin/sponsor-preview"],
-    ["Admins", "/admin/admins"],
     ["Reports", "/admin/reports"],
-    ["Organizations", "/admin/organizations"],
   ],
 };
 

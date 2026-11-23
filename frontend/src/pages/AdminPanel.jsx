@@ -43,39 +43,59 @@ function NewUserFields({ form, setForm }) {
   );
 }
 
+
 function Dashboard() {
   const [summary, setSummary] = useState(null);
   const [error, setError] = useState("");
+
   useEffect(() => {
     apiRequest("/api/admin/overview/")
-      .then(result => setSummary(result.summary))
+      .then(data => setSummary(data.summary))
       .catch(err => setError(err.message));
   }, []);
+
   const items = [
     ["Sponsors", "/admin/sponsors", "sponsors"],
     ["Drivers", "/admin/drivers", "drivers"],
     ["Administrators", "/admin/admins", "admins"],
-    ["Organizations", "/admin/sponsors", "organizations"],
+    ["Organizations", "/admin/organizations", "organizations"],
     ["Orders", "/admin/reports", "orders"],
-    ["Points outstanding", "/admin/reports", "total_points_outstanding"],
+    ["Points Outstanding", "/admin/reports", "total_points_outstanding"],
   ];
+
   return (
     <section className="admin-panel">
       <h1>Admin Dashboard</h1>
-      <p>Manage sponsor accounts, driver assignments, account security, and reports.</p>
+
+      <p>
+        Manage sponsor accounts, driver assignments,
+        account security, and reports.
+      </p>
+
       <Note message={error} error />
+
       <div className="admin-stats">
         {items.map(([title, url, key]) => (
-          <Link to={url} className="card admin-stat" key={key}>
+          <Link
+            to={url}
+            className="card admin-stat"
+            key={key}
+          >
             <strong>{title}</strong>
             <span>{summary ? summary[key] : "..."}</span>
           </Link>
         ))}
       </div>
-      <p className="admin-hint">To perform usability testing, start by creating a sponsor, then assign a driver from the Drivers page.</p>
+
+      <p>
+        <Link to="/admin/sponsor-preview">
+          View as Sponsor / Driver
+        </Link>
+      </p>
     </section>
   );
 }
+
 
 
 function Sponsors() {
