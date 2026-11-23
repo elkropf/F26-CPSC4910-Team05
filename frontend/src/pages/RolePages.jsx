@@ -8,7 +8,7 @@ function getItems(data) {
 
   for (const key of [
     "results", "applications", "organizations",
-    "drivers", "sponsors", "items"
+    "drivers", "sponsors", "items", "history"
   ]) {
     if (Array.isArray(data?.[key])) return data[key];
   }

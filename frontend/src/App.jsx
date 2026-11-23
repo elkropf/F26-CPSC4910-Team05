@@ -8,6 +8,7 @@ import ProfilePage from "./pages/ProfilePage";
 import AdminPanel from "./pages/AdminPanel";
 import AboutPage from "./pages/AboutPage";
 import NotificationsPage from "./pages/NotificationsPage";
+import OrdersPage from "./pages/OrdersPage";
 
 import { useEffect, useState } from "react";
 import {
@@ -337,6 +338,10 @@ function AppContent() {
               element={<CatalogPage role="driver" />}
             />
           </Route>
+          <Route
+            path="/driver/orders"
+            element={<OrdersPage />}
+          />
 
           {/* Sponsor */}
 

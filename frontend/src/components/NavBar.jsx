@@ -15,6 +15,7 @@ const menus = {
     ["Drivers", "/sponsor/drivers"],
     ["Points", "/sponsor/points"],
     ["Stores", "/sponsor/stores"],
+    ["Orders", "/driver/orders"],
   ],
 
   admin: [
