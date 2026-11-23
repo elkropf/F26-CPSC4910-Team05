@@ -2,7 +2,7 @@ from django.core.validators import validate_email
 from django.views.decorators.http import require_http_methods
 import json
 
-from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
+from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout, update_session_auth_hash
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
@@ -1473,6 +1473,7 @@ def register(request):
 def password_change_page(request):
     return render(request, "password_change.html")
 
+@csrf_protect
 @require_POST
 def change_password(request):
     username = request.POST.get("user_in", "").strip()

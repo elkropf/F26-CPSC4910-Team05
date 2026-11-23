@@ -20,7 +20,10 @@ const menus = {
   admin: [
     ["Dashboard", "/admin/dashboard"],
     ["Sponsors", "/admin/sponsors"],
+    ["Drivers", "/admin/drivers"],
     ["Sponsor Preview", "/admin/sponsor-preview"],
+    ["Admins", "/admin/admins"],
+    ["Reports", "/admin/reports"],
   ],
 };
 
