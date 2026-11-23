@@ -687,36 +687,163 @@ function Preview() {
   );
 }
 
+
 function Admins() {
   const { admins, error, load } = useDirectory();
+
   const [form, setForm] = useState({ ...blankUser });
   const [message, setMessage] = useState("");
   const [failed, setFailed] = useState(false);
   const [busy, setBusy] = useState(false);
-  async function create(event) {
-    event.preventDefault(); setBusy(true); setMessage("");
+
+  const [editingId, setEditingId] = useState(null);
+  const [editData, setEditData] = useState({});
+
+  async function create(e) {
+    e.preventDefault();
+    setBusy(true);
+    setMessage("");
+
     try {
-      const result = await apiRequest("/api/admin/admins/create/", "POST", form);
-      setForm({ ...blankUser }); setFailed(false);
-      setMessage(`Created administrator ${result.admin.username}.`);
+      const result = await apiRequest(
+        "/api/admin/admins/create/",
+        "POST",
+        form
+      );
+
+      setForm({ ...blankUser });
+      setFailed(false);
+      setMessage(`Created admin ${result.admin.username}.`);
       await load();
-    } catch (err) { setFailed(true); setMessage(err.message); }
-    finally { setBusy(false); }
+    } catch (err) {
+      setFailed(true);
+      setMessage(err.message);
+    } finally {
+      setBusy(false);
+    }
   }
-  return <section className="admin-panel">
-    <h1>Admin Accounts</h1>
-    <Note message={error} error /><Note message={message} error={failed} />
-    <div className="card"><h2>Create an administrator</h2>
-      <form onSubmit={create}><NewUserFields form={form} setForm={setForm} />
-        <button disabled={busy}>Create Admin</button>
-      </form>
-    </div>
-    <h2>Existing administrators</h2>
-    <div className="admin-stack">{admins.map(u => <div className="card" key={u.id}>
-      <strong>{u.username}</strong><p>{u.email || "No email"} • {u.is_active ? "Active" : "Inactive"}</p>
-    </div>)}</div>
-  </section>;
+
+  function editAdmin(admin) {
+    setEditingId(admin.id);
+
+    setEditData({
+      first_name: admin.first_name || "",
+      last_name: admin.last_name || "",
+      email: admin.email || ""
+    });
+  }
+
+  async function saveEdit(e, admin) {
+    e.preventDefault();
+    setBusy(true);
+    setMessage("");
+
+    try {
+      await apiRequest(
+        `/api/admin/users/${admin.id}/edit/`,
+        "POST",
+        editData
+      );
+
+      setMessage("Admin updated.");
+      setFailed(false);
+      setEditingId(null);
+      await load();
+    } catch (err) {
+      setFailed(true);
+      setMessage(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="admin-panel">
+      <h1>Admin Accounts</h1>
+
+      <Note message={error} error />
+      <Note message={message} error={failed} />
+
+      <div className="card">
+        <h2>Create an Administrator</h2>
+
+        <form onSubmit={create}>
+          <NewUserFields form={form} setForm={setForm} />
+
+          <button disabled={busy}>
+            Create Admin
+          </button>
+        </form>
+      </div>
+
+      <h2>Existing Administrators</h2>
+
+      <div className="admin-stack">
+        {admins.map(a => (
+          <div className="card" key={a.id}>
+            <h3>{a.username}</h3>
+            <p>{a.email || "No email"}</p>
+            <p>{a.is_active ? "Active" : "Inactive"}</p>
+
+            <button
+              disabled={busy}
+              onClick={() => editAdmin(a)}
+            >
+              Edit
+            </button>
+
+            {editingId === a.id && (
+              <form onSubmit={e => saveEdit(e, a)}>
+                <h3>Edit Admin</h3>
+
+                <label>First Name</label>
+                <input
+                  value={editData.first_name}
+                  onChange={e => setEditData({
+                    ...editData,
+                    first_name: e.target.value
+                  })}
+                />
+
+                <label>Last Name</label>
+                <input
+                  value={editData.last_name}
+                  onChange={e => setEditData({
+                    ...editData,
+                    last_name: e.target.value
+                  })}
+                />
+
+                <label>Email</label>
+                <input
+                  type="email"
+                  value={editData.email}
+                  onChange={e => setEditData({
+                    ...editData,
+                    email: e.target.value
+                  })}
+                  required
+                />
+
+                <button type="submit" disabled={busy}>
+                  Save
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setEditingId(null)}
+                >
+                  Cancel
+                </button>
+              </form>
+            )}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
 }
+
 
 function Reports() {
   const kinds = [
