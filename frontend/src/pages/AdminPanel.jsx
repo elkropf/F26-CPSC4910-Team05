@@ -190,6 +190,7 @@ function Sponsors() {
   );
 }
 
+
 function Drivers() {
   const { drivers, sponsors, loading, error, load } = useDirectory();
   const [selection, setSelection] = useState({});
@@ -197,9 +198,13 @@ function Drivers() {
   const [message, setMessage] = useState("");
   const [actionError, setActionError] = useState(false);
 
+  const [editingId, setEditingId] = useState(null);
+  const [editData, setEditData] = useState({});
+
   async function run(fn) {
     setBusy(true);
     setMessage("");
+
     try {
       await fn();
       setActionError(false);
@@ -207,79 +212,232 @@ function Drivers() {
     } catch (err) {
       setActionError(true);
       setMessage(err.message);
-    } finally { setBusy(false); }
+    } finally {
+      setBusy(false);
+    }
   }
 
   function assign(driver) {
     const sponsorId = Number(selection[driver.driver_id]);
-    if (!sponsorId) { setActionError(true); setMessage("Select a sponsor first."); return; }
+
+    if (!sponsorId) {
+      setActionError(true);
+      setMessage("Select a sponsor first.");
+      return;
+    }
+
     const oldOrg = driver.organizations.map(o => o.name).join(", ") || "none";
-    if (!window.confirm(`Assign ${driver.username} to the selected sponsor? Current organization: ${oldOrg}. Other active memberships will be removed.`)) return;
+
+    if (!window.confirm(`Assign ${driver.username} to the selected sponsor? Current organization: ${oldOrg}. Other active memberships will be removed.`)) {
+      return;
+    }
+
     run(async () => {
-      await apiRequest(`/api/admin/drivers/${driver.driver_id}/assign/`, "POST", { sponsor_id: sponsorId });
+      await apiRequest(
+        `/api/admin/drivers/${driver.driver_id}/assign/`,
+        "POST",
+        { sponsor_id: sponsorId }
+      );
+
       setMessage(`Assigned ${driver.username}.`);
     });
   }
 
   function reset(driver) {
-    if (!window.confirm(`Email a password reset link to ${driver.username}?`)) return;
+    if (!window.confirm(`Email a password reset link to ${driver.username}?`)) {
+      return;
+    }
+
     run(async () => {
-      const data = await apiRequest(`/api/admin/drivers/${driver.driver_id}/reset-password/`, "POST");
+      const data = await apiRequest(
+        `/api/admin/drivers/${driver.driver_id}/reset-password/`,
+        "POST"
+      );
+
       setMessage(data.message);
     });
   }
 
   function deactivate(driver) {
-    if (!window.confirm(`${driver.is_active ? "Deactivate" : "Reactivate"} ${driver.username}?`)) return;
+    if (!window.confirm(`${driver.is_active ? "Deactivate" : "Reactivate"} ${driver.username}?`)) {
+      return;
+    }
+
     run(async () => {
-      await apiRequest(`/api/admin/users/${driver.id}/status/`, "POST", { active: !driver.is_active });
+      await apiRequest(
+        `/api/admin/users/${driver.id}/status/`,
+        "POST",
+        { active: !driver.is_active }
+      );
+
       setMessage(`Updated ${driver.username}.`);
     });
   }
 
   function remove(driver) {
-    const typed = window.prompt(`Delete driver ${driver.username} permanently? Type the username to confirm:`);
+    const typed = window.prompt(
+      `Delete driver ${driver.username} permanently? Type the username to confirm:`
+    );
+
     if (typed !== driver.username) return;
+
     run(async () => {
-      await apiRequest(`/api/admin/users/${driver.id}/delete/`, "POST");
+      await apiRequest(
+        `/api/admin/users/${driver.id}/delete/`,
+        "POST"
+      );
+
       setMessage(`Deleted ${driver.username}.`);
+    });
+  }
+
+  function editDriver(driver) {
+    setEditingId(driver.id);
+
+    setEditData({
+      first_name: driver.first_name || "",
+      last_name: driver.last_name || "",
+      email: driver.email || ""
+    });
+  }
+
+  function saveEdit(e, driver) {
+    e.preventDefault();
+
+    run(async () => {
+      await apiRequest(
+        `/api/admin/users/${driver.id}/edit/`,
+        "POST",
+        editData
+      );
+
+      setEditingId(null);
+      setMessage("Driver updated.");
     });
   }
 
   return (
     <section className="admin-panel">
       <h1>Manage Drivers</h1>
-      <p>Each driver has one active sponsor organization. Assigning a different sponsor replaces their current membership, but retains historical orders and point balances.</p>
-      <Note message={error} error /><Note message={message} error={actionError} />
+
+      <p>
+        Each driver has one active sponsor organization.
+        Assigning a different sponsor replaces their current membership,
+        but retains historical orders and point balances.
+      </p>
+
+      <Note message={error} error />
+      <Note message={message} error={actionError} />
+
       {loading && <p>Loading drivers...</p>}
-      {!loading && drivers.length === 0 && <p>No drivers yet.</p>}
+
+      {!loading && drivers.length === 0 && (
+        <p>No drivers yet.</p>
+      )}
+
       <div className="admin-stack">
         {drivers.map(d => (
           <div className="card" key={d.driver_id}>
-            <div className="admin-card-header">
-              <div><h3>{d.username}</h3><p>{d.email || "No email"} • {d.is_active ? "Active" : "Inactive"}</p>
-                <p>Organization: {d.organizations.map(o => o.name).join(", ") || "Unassigned"}</p>
-              </div>
-            </div>
+
+            <h3>{d.username}</h3>
+            <p>{d.email || "No email"} - {d.is_active ? "Active" : "Inactive"}</p>
+            <p>
+              Organization: {d.organizations.map(o => o.name).join(", ") || "Unassigned"}
+            </p>
+
             <label>Select sponsor to assign</label>
+
             <div className="admin-actions">
-              <select value={selection[d.driver_id] || ""} onChange={e => setSelection({ ...selection, [d.driver_id]: e.target.value })}>
+              <select
+                value={selection[d.driver_id] || ""}
+                onChange={e => setSelection({
+                  ...selection,
+                  [d.driver_id]: e.target.value
+                })}
+              >
                 <option value="">Choose sponsor</option>
+
                 {sponsors.filter(s => s.is_active && s.organization_id).map(s => (
-                  <option key={s.sponsor_id} value={s.sponsor_id}>{s.username} ({s.organization})</option>
+                  <option key={s.sponsor_id} value={s.sponsor_id}>
+                    {s.username} ({s.organization})
+                  </option>
                 ))}
               </select>
-              <button disabled={busy} onClick={() => assign(d)}>Assign Sponsor</button>
-              <button disabled={busy} onClick={() => reset(d)}>Send Password Reset</button>
-              <button disabled={busy} onClick={() => deactivate(d)}>{d.is_active ? "Deactivate" : "Activate"}</button>
-              <button disabled={busy} className="danger" onClick={() => remove(d)}>Delete</button>
+
+              <button disabled={busy} onClick={() => assign(d)}>
+                Assign Sponsor
+              </button>
+
+              <button disabled={busy} onClick={() => reset(d)}>
+                Send Password Reset
+              </button>
+
+              <button disabled={busy} onClick={() => deactivate(d)}>
+                {d.is_active ? "Deactivate" : "Activate"}
+              </button>
+
+              <button disabled={busy} className="danger" onClick={() => remove(d)}>
+                Delete
+              </button>
+
+              <button disabled={busy} onClick={() => editDriver(d)}>
+                Edit
+              </button>
             </div>
+
+            {editingId === d.id && (
+              <form onSubmit={e => saveEdit(e, d)}>
+                <h3>Edit Driver</h3>
+
+                <label>First Name</label>
+                <input
+                  value={editData.first_name}
+                  onChange={e => setEditData({
+                    ...editData,
+                    first_name: e.target.value
+                  })}
+                />
+
+                <label>Last Name</label>
+                <input
+                  value={editData.last_name}
+                  onChange={e => setEditData({
+                    ...editData,
+                    last_name: e.target.value
+                  })}
+                />
+
+                <label>Email</label>
+                <input
+                  type="email"
+                  value={editData.email}
+                  onChange={e => setEditData({
+                    ...editData,
+                    email: e.target.value
+                  })}
+                  required
+                />
+
+                <button type="submit" disabled={busy}>
+                  Save
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setEditingId(null)}
+                >
+                  Cancel
+                </button>
+              </form>
+            )}
+
           </div>
         ))}
       </div>
     </section>
   );
 }
+
 
 function Preview() {
   const { sponsors, drivers, error, loading } = useDirectory();
