@@ -24,6 +24,7 @@ const menus = {
     ["Sponsor Preview", "/admin/sponsor-preview"],
     ["Admins", "/admin/admins"],
     ["Reports", "/admin/reports"],
+    ["Organizations", "/admin/organizations"],
   ],
 };
 

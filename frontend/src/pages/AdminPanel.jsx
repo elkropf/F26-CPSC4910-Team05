@@ -967,5 +967,6 @@ export default function AdminPanel({ view = "dashboard" }) {
   if (view === "preview") return <Preview />;
   if (view === "admins") return <Admins />;
   if (view === "reports") return <Reports />;
+  if (view === "organizations") return <Organizations />;
   return <Dashboard />;
 }

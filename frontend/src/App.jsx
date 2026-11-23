@@ -413,6 +413,10 @@ function AppContent() {
               element={<AdminPanel view="reports" />}
             />
           </Route>
+          <Route
+            path="/admin/organizations"
+            element={<AdminPanel view="organizations" />}
+          />
 
           {/* Shared pages */}
 
