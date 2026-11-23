@@ -343,6 +343,27 @@ function AppContent() {
             element={<OrdersPage />}
           />
 
+          <Route
+            path="/driver/points"
+            element={
+              <DataPage
+                title="My Points"
+                url="/api/points/mine/"
+              />
+            }
+          />
+
+          <Route
+            path="/driver/points/history"
+            element={
+              <DataPage
+                title="Point History"
+                url="/api/points/history/"
+              />
+            }
+          />
+
+
           {/* Sponsor */}
 
           <Route
