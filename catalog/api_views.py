@@ -343,3 +343,41 @@ def checkout(request):
     return JsonResponse({
         "message": f"Order #{order.pk} placed successfully."
     })
+
+
+@require_GET
+def order_history(request):
+    driver, error = _driver(request)
+
+    if error is not None:
+        return error
+
+    orders = Order.objects.filter(
+        driver=driver
+    ).exclude(
+        order_status=OrderStatus.PENDING
+    ).prefetch_related(
+        "items__product"
+    ).order_by("-created_at")
+
+    results = []
+
+    for order in orders:
+        items = []
+
+        for item in order.items.all():
+            items.append({
+                "name": item.product.product_name,
+                "quantity": item.quantity,
+                "points": item.points_cost
+            })
+
+        results.append({
+            "id": order.id,
+            "status": order.order_status,
+            "points": order.total_points,
+            "created_at": order.created_at.isoformat(),
+            "items": items
+        })
+
+    return JsonResponse({"orders": results})
