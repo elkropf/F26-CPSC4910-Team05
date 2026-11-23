@@ -105,7 +105,7 @@ def directory(request):
         "sponsors": [sponsor_info(s) for s in sponsors],
         "drivers": [driver_info(d) for d in drivers],
         "admins": [user_info(a.user) for a in admins],
-        "organizations": [{"id": o.pk, "name": o.organization_name,
+        "organizations": [{"id": o.pk, "name": o.organization_name, "description": o.organization_description
                            "is_active": o.is_active} for o in organizations],
     })
 
