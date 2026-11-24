@@ -400,7 +400,13 @@ function AppContent() {
               path="/sponsor/ebay"
               element={<SponsorEbayPage />}
             />
+            <Route
+              path="/sponsor/profile"
+              element={<ProfilePage />}
+            />
           </Route>
+
+
 
           {/* Admin */}
 

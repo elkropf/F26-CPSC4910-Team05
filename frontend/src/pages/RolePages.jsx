@@ -106,6 +106,7 @@ export function HomePage({ user }) {
     ],
 
     sponsor: [
+      ["My Profile", "/sponsor/profile"],
       ["Review Applications", "/sponsor/applications"],
       ["Sponsored Drivers", "/sponsor/drivers"],
       ["Manage Points", "/sponsor/points"],
