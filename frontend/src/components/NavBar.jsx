@@ -5,13 +5,12 @@ const menus = {
   driver: [
     ["Home", "/driver/home"],
     ["Apply", "/driver/apply"],
-    ["Applications", "/driver/applications"],
     ["Stores", "/driver/stores"],
+    ["Orders", "/driver/orders"],
   ],
 
   sponsor: [
     ["Home", "/sponsor/home"],
-    ["Applications", "/sponsor/applications"],
     ["Drivers", "/sponsor/drivers"],
     ["Points", "/sponsor/points"],
     ["Stores", "/sponsor/stores"],
@@ -20,16 +19,21 @@ const menus = {
   admin: [
     ["Dashboard", "/admin/dashboard"],
     ["Sponsors", "/admin/sponsors"],
-    ["Preview", "/admin/sponsor-preview"],
+    ["Drivers", "/admin/drivers"],
+    ["Reports", "/admin/reports"],
   ],
 };
 
 export default function Navbar({ role, username, onLogout }) {
   const links = role
-    ? [...(menus[role] || []), ["About", "/about"]]
+    ? [
+        ...(menus[role] || []),
+        ["Notifications", "/notifications"],
+        ["About", "/about"]
+      ]
     : [
         ["Login", "/login"],
-        ["Register", "/register"],
+        ["Register", "/register"]
       ];
 
   return (

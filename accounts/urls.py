@@ -256,4 +256,18 @@ urlpatterns = [
         admin_api.report_csv,
         name="admin_reports",
     ),
+
+    path(
+        "api/admin/users/<int:user_id>/edit/",
+        admin_api.edit_user,
+        name="admin_edit_user",
+    ),
+
+    path(
+        "api/admin/organizations/<int:organization_id>/edit/",
+        admin_api.edit_organization,
+        name="admin_edit_organization",
+    ),
+
+
 ]

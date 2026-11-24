@@ -8,7 +8,7 @@ function getItems(data) {
 
   for (const key of [
     "results", "applications", "organizations",
-    "drivers", "sponsors", "items"
+    "drivers", "sponsors", "items", "history"
   ]) {
     if (Array.isArray(data?.[key])) return data[key];
   }
@@ -82,36 +82,49 @@ export function DataPage({ title, url }) {
   );
 }
 
+
 export function HomePage({ user }) {
   const role = user.user_type;
+  const [pointAmt, setPointAmt] = useState(null);
+
+  useEffect(() => {
+    if (role !== "driver") return;
+
+    apiRequest("/api/catalog/points/")
+      .then(data => setPointAmt(data.points))
+      .catch(() => setPointAmt("Unavailable"));
+  }, [role]);
 
   const actions = {
     driver: [
       ["My Profile", "/driver/profile"],
-      ["Apply to a sponsor", "/driver/apply"],
-      ["My applications", "/driver/applications"],
+      ["My Applications", "/driver/applications"],
+      ["My Points", "/driver/points"],
+      ["Point History", "/driver/points/history"],
+      ["My Orders", "/driver/orders"],
       ["Stores", "/driver/stores"],
     ],
+
     sponsor: [
-      ["Review applications", "/sponsor/applications"],
-      ["Drivers", "/sponsor/drivers"],
-      ["Manage points", "/sponsor/points"],
-    ],
-    admin: [
-      ["Manage sponsors", "/admin/sponsors"],
-      ["Sponsor preview", "/admin/sponsor-preview"],
-      ["About", "/about"],
+      ["Review Applications", "/sponsor/applications"],
+      ["Sponsored Drivers", "/sponsor/drivers"],
+      ["Manage Points", "/sponsor/points"],
+      ["Sponsor Store", "/sponsor/stores"],
     ],
   };
-  if (role === "driver") {
-    const pointAmt = await apiRequest("/api/catalog/points/").points;
-  }
-  
+
   return (
     <section>
       <h1>Welcome, {user.username}</h1>
+
       <p>Your account role: <strong>{role}</strong></p>
-      {role === "driver" && <p>Current point balance: <strong>{pointAmt}</strong></p>}
+
+      {role === "driver" && (
+        <p>
+          Current point balance: <strong>{pointAmt ?? "Loading..."}</strong>
+        </p>
+      )}
+
       <div className="cards">
         {(actions[role] || []).map(([name, path]) => (
           <Link className="card action-card" to={path} key={path}>
@@ -123,6 +136,7 @@ export function HomePage({ user }) {
     </section>
   );
 }
+
 
 export function ApplyPage() {
   const { data: organizations, error, loading } =

@@ -16,6 +16,7 @@ from django.utils import timezone
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from django.views.decorators.http import require_GET, require_POST
+from django.core.validators import validate_email
 
 from .audit import csv_text, record_event
 from .models import (
@@ -104,9 +105,112 @@ def directory(request):
         "sponsors": [sponsor_info(s) for s in sponsors],
         "drivers": [driver_info(d) for d in drivers],
         "admins": [user_info(a.user) for a in admins],
-        "organizations": [{"id": o.pk, "name": o.organization_name,
+        "organizations": [{"id": o.pk, "name": o.organization_name, "description": o.organization_description,
                            "is_active": o.is_active} for o in organizations],
     })
+
+
+@require_POST
+@admin_only
+def edit_user(request, user_id):
+    data = payload(request)
+
+    if data is None:
+        return error("Invalid JSON.")
+
+    try:
+        user = User.objects.get(pk=user_id)
+    except User.DoesNotExist:
+        return error("User not found.", 404)
+
+    updates = {}
+
+    for field in ("first_name", "last_name", "email"):
+        if field in data:
+            value = data[field]
+
+            if not isinstance(value, str):
+                return error("Invalid field value.")
+
+            value = value.strip()
+
+            if len(value) > (254 if field == "email" else 150):
+                return error("Field value is too long.")
+
+            if field == "email":
+                try:
+                    validate_email(value)
+                except ValidationError:
+                    return error("Enter a valid email.")
+
+            updates[field] = value
+
+    if not updates:
+        return error("No fields provided.")
+
+    for field, value in updates.items():
+        setattr(user, field, value)
+
+    user.save(update_fields=list(updates))
+
+    record_event(
+        action="admin.user_updated",
+        actor=request.user,
+        record_type="user",
+        record_id=user.id,
+        description=f"Updated profile for {user.username}."
+    )
+
+    return JsonResponse({"user": user_info(user)})
+
+
+@require_POST
+@admin_only
+def edit_organization(request, organization_id):
+    data = payload(request)
+
+    if data is None:
+        return error("Invalid JSON.")
+
+    try:
+        org = Organization.objects.get(id=organization_id)
+    except Organization.DoesNotExist:
+        return error("Organization not found.", 404)
+
+    name = data.get("name", "")
+    description = data.get("description", "")
+
+    if not isinstance(name, str) or not isinstance(description, str):
+        return error("Invalid information.")
+
+    name = name.strip()
+    description = description.strip()
+
+    if not name:
+        return error("Organization name is required.")
+
+    if Organization.objects.filter(
+        organization_name__iexact=name
+    ).exclude(id=organization_id).exists():
+        return error("Organization name already exists.")
+
+    org.organization_name = name
+    org.organization_description = description
+    org.save()
+
+    record_event(
+        action="admin.organization_updated",
+        actor=request.user,
+        organization=org,
+        record_type="organization",
+        record_id=org.id,
+        description=f"Updated organization {name}."
+    )
+
+    return JsonResponse({
+        "message": "Organization updated."
+    })
+
 
 
 def validate_new_user(data):

@@ -11,4 +11,5 @@ urlpatterns = [
     path("cart/checkout/", api_views.checkout, name="api_catalog_checkout"),
     path("ebay/search/", ebay_api.ebay_search),
     path("ebay/add/", ebay_api.ebay_add),
+    path("orders/", api_views.order_history, name="api_catalog_orders"),
 ]
