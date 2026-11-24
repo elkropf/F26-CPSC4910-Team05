@@ -445,6 +445,10 @@ function AppContent() {
               path="/admin/reports"
               element={<AdminPanel view="reports" />}
             />
+            <Route
+              path="/admin/bulk-import"
+              element={<AdminPanel view="bulk-import" />}
+            />
           </Route>
           <Route
             path="/admin/organizations"

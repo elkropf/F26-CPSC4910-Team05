@@ -1028,6 +1028,165 @@ function Organizations() {
 }
 
 
+
+function BulkImport() {
+  const [file, setFile] = useState(null);
+  const [jobId, setJobId] = useState("");
+  const [result, setResult] = useState(null);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  function getCookie(name) {
+    const cookies = document.cookie.split(";");
+
+    for (const cookie of cookies) {
+      const [key, ...value] = cookie.trim().split("=");
+
+      if (key === name) {
+        return decodeURIComponent(value.join("="));
+      }
+    }
+
+    return "";
+  }
+
+  async function upload(e) {
+    e.preventDefault();
+
+    if (!file) return;
+
+    setBusy(true);
+    setError("");
+    setMessage("");
+    setResult(null);
+    setJobId("");
+
+    try {
+      if (!getCookie("csrftoken")) {
+        await fetch("/api/auth/csrf/", {
+          credentials: "same-origin"
+        });
+      }
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/api/users/bulk-import/", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "X-CSRFToken": getCookie("csrftoken")
+        },
+        body: formData
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Upload failed");
+      }
+
+      setJobId(data.job_id);
+      setResult(data);
+      setMessage("File uploaded successfully. Job #" + data.job_id);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function checkStatus() {
+    if (!jobId) return;
+
+    setBusy(true);
+    setError("");
+
+    try {
+      const response = await fetch(
+        `/api/users/bulk-import/${jobId}/`,
+        { credentials: "same-origin" }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Could not get status");
+      }
+
+      setResult(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="admin-panel">
+      <h1>Bulk Import Users</h1>
+
+      <div className="card">
+        <h2>Upload File</h2>
+
+        <p>
+          Upload a text file containing organizations,
+          drivers, or sponsors.
+        </p>
+
+        <form onSubmit={upload}>
+          <input
+            type="file"
+            accept=".txt"
+            onChange={e => setFile(e.target.files[0] || null)}
+          />
+
+          <button type="submit" disabled={busy || !file}>
+            Upload File
+          </button>
+        </form>
+
+        {message && <p>{message}</p>}
+        {error && <p className="error">{error}</p>}
+      </div>
+
+      {jobId && (
+        <div className="card">
+          <h2>Import Status</h2>
+
+          <p>Job ID: {jobId}</p>
+          <p>Status: {result?.status}</p>
+          <p>Processed: {result?.processed_rows ?? 0}</p>
+          <p>Successful: {result?.successful_rows ?? 0}</p>
+          <p>Failed: {result?.failed_rows ?? 0}</p>
+
+          {result?.error && (
+            <p className="error">{result.error}</p>
+          )}
+
+          <button
+            type="button"
+            disabled={busy}
+            onClick={checkStatus}
+          >
+            Refresh Status
+          </button>
+
+          {result?.results_available && (
+            <p>
+              <a href={`/api/users/bulk-import/${jobId}/results/`}>
+                Download Results
+              </a>
+            </p>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+
 function Reports() {
   const kinds = [
     ["Sponsor accounts and fees", "sponsors"],
