@@ -44,6 +44,7 @@ function NewUserFields({ form, setForm }) {
 }
 
 
+
 function Dashboard() {
   const [summary, setSummary] = useState(null);
   const [error, setError] = useState("");
@@ -92,9 +93,16 @@ function Dashboard() {
           View as Sponsor / Driver
         </Link>
       </p>
+
+      <p>
+        <Link to="/admin/bulk-import">
+          Bulk Import Users
+        </Link>
+      </p>
     </section>
   );
 }
+
 
 
 

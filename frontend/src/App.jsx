@@ -9,6 +9,7 @@ import AdminPanel from "./pages/AdminPanel";
 import AboutPage from "./pages/AboutPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import OrdersPage from "./pages/OrdersPage";
+import BulkImportPage from "./pages/BulkImportPage";
 
 import { useEffect, useState } from "react";
 import {
