@@ -1209,6 +1209,7 @@ function Reports() {
   </section>;
 }
 
+
 export default function AdminPanel({ view = "dashboard" }) {
   if (view === "sponsors") return <Sponsors />;
   if (view === "drivers") return <Drivers />;
@@ -1216,5 +1217,7 @@ export default function AdminPanel({ view = "dashboard" }) {
   if (view === "admins") return <Admins />;
   if (view === "reports") return <Reports />;
   if (view === "organizations") return <Organizations />;
+  if (view === "bulk-import") return <BulkImport />;
+
   return <Dashboard />;
 }
