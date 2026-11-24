@@ -7,6 +7,8 @@ from django.db.models import F
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET, require_POST
 
+from accounts.notifications import create_notification
+
 from accounts.models import (
     Product,
     Order,
@@ -280,9 +282,90 @@ def remove_from_cart(request, item_id):
     return JsonResponse({"message": "Removed from cart."})
 
 
+
 @require_POST
 @transaction.atomic
 def checkout(request):
+    driver, error = _driver(request)
+
+    if error is not None:
+        return error
+
+    order = (
+        Order.objects.select_for_update()
+        .filter(
+            driver=driver,
+            order_status=OrderStatus.PENDING,
+        )
+        .first()
+    )
+
+    if order is None or not order.items.exists():
+        return JsonResponse(
+            {"error": "Cart is empty."},
+            status=400,
+        )
+
+    organization_id = _driver_organization_id(driver)
+
+    if organization_id != order.organization_id:
+        return JsonResponse(
+            {"error": "This cart is not for your assigned sponsor."},
+            status=403,
+        )
+
+    points = (
+        Points.objects.select_for_update()
+        .filter(
+            driver=driver,
+            organization_id=order.organization_id,
+        )
+        .first()
+    )
+
+    if points is None:
+        return JsonResponse(
+            {"error": "Points account not found."},
+            status=404,
+        )
+
+    if points.points_balance < order.total_points:
+        return JsonResponse(
+            {"error": "Not enough points."},
+            status=400,
+        )
+
+    total = order.total_points
+
+    points.points_balance = F("points_balance") - total
+    points.save(update_fields=["points_balance"])
+
+    order.order_status = OrderStatus.PROCESSING
+    order.save(update_fields=["order_status"])
+
+    create_notification(
+        user=driver.user,
+        notification_type="order",
+        organization=order.organization,
+        message=f"Order #{order.id} placed for {total} points."
+    )
+
+    sponsors = Sponsor.objects.filter(
+        organization_id=order.organization_id
+    ).select_related("user")
+
+    for sponsor in sponsors:
+        create_notification(
+            user=sponsor.user,
+            notification_type="order",
+            organization=order.organization,
+            message=f"{driver.user.username} placed order #{order.id}."
+        )
+
+    return JsonResponse({
+        "message": f"Order #{order.pk} placed successfully."
+    })
+
     driver, error = _driver(request)
 
     if error is not None:
