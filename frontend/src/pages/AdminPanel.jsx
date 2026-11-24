@@ -118,7 +118,6 @@ function Sponsors() {
 
   // Delete confirmation
   const [deleteId, setDeleteId] = useState(null);
-  const [deleteText, setDeleteText] = useState("");
 
   useEffect(() => {
     setFees(Object.fromEntries(
@@ -200,13 +199,8 @@ function Sponsors() {
   }
 
   // Delete sponsor
+  
   function remove(user) {
-    if (deleteText !== user.username) {
-      setMessage("Username does not match.");
-      setActionError(true);
-      return;
-    }
-
     run(async () => {
       await apiRequest(
         `/api/admin/users/${user.id}/delete/`,
@@ -215,9 +209,9 @@ function Sponsors() {
 
       setMessage(`Deleted ${user.username}.`);
       setDeleteId(null);
-      setDeleteText("");
     });
   }
+
 
   function editSponsor(sponsor) {
     setEditingId(sponsor.id);
@@ -374,6 +368,7 @@ function Sponsors() {
               </button>
             </div>
 
+            
             {/* Delete confirmation */}
             {deleteId === s.id && (
               <div className="card">
@@ -384,36 +379,27 @@ function Sponsors() {
                   {" "}{s.username} permanently?
                 </p>
 
-                <p>Type the username to confirm:</p>
-
-                <input
-                  value={deleteText}
-                  onChange={e => setDeleteText(e.target.value)}
-                  placeholder={`Type ${s.username}`}
-                />
-
                 <div className="admin-actions">
                   <button
                     type="button"
                     className="danger"
-                    disabled={busy || deleteText !== s.username}
+                    disabled={busy}
                     onClick={() => remove(s)}
                   >
-                    Confirm Delete
+                    Yes, Delete
                   </button>
 
                   <button
                     type="button"
-                    onClick={() => {
-                      setDeleteId(null);
-                      setDeleteText("");
-                    }}
+                    disabled={busy}
+                    onClick={() => setDeleteId(null)}
                   >
                     Cancel
                   </button>
                 </div>
               </div>
             )}
+
 
             {/* Edit sponsor */}
             {editingId === s.id && (
