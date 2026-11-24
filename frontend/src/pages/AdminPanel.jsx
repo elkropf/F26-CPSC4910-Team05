@@ -98,6 +98,7 @@ function Dashboard() {
 
 
 
+
 function Sponsors() {
   const { sponsors, organizations, loading, error, load } = useDirectory();
 
@@ -114,6 +115,10 @@ function Sponsors() {
 
   const [editingId, setEditingId] = useState(null);
   const [editData, setEditData] = useState({});
+
+  // Delete confirmation
+  const [deleteId, setDeleteId] = useState(null);
+  const [deleteText, setDeleteText] = useState("");
 
   useEffect(() => {
     setFees(Object.fromEntries(
@@ -177,7 +182,9 @@ function Sponsors() {
   function setActive(user) {
     const action = user.is_active ? "deactivate" : "activate";
 
-    if (!window.confirm(`Are you sure you want to ${action} ${user.username}?`)) {
+    if (!window.confirm(
+      `Are you sure you want to ${action} ${user.username}?`
+    )) {
       return;
     }
 
@@ -192,12 +199,13 @@ function Sponsors() {
     });
   }
 
+  // Delete sponsor
   function remove(user) {
-    const typed = window.prompt(
-      `Delete sponsor ${user.username} permanently? Type the username to confirm:`
-    );
-
-    if (typed !== user.username) return;
+    if (deleteText !== user.username) {
+      setMessage("Username does not match.");
+      setActionError(true);
+      return;
+    }
 
     run(async () => {
       await apiRequest(
@@ -206,6 +214,8 @@ function Sponsors() {
       );
 
       setMessage(`Deleted ${user.username}.`);
+      setDeleteId(null);
+      setDeleteText("");
     });
   }
 
@@ -259,7 +269,9 @@ function Sponsors() {
                   organization_name: ""
                 })}
               >
-                <option value="">Create a new organization instead</option>
+                <option value="">
+                  Create a new organization instead
+                </option>
 
                 {organizations.filter(o => o.is_active).map(o => (
                   <option key={o.id} value={o.id}>
@@ -285,7 +297,9 @@ function Sponsors() {
             )}
           </div>
 
-          <button disabled={busy}>Create Sponsor</button>
+          <button disabled={busy}>
+            Create Sponsor
+          </button>
         </form>
       </div>
 
@@ -321,27 +335,87 @@ function Sponsors() {
                 })}
               />
 
-              <button disabled={busy} onClick={() => saveFee(s)}>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => saveFee(s)}
+              >
                 Save Fee
               </button>
 
-              <button disabled={busy} onClick={() => setActive(s)}>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => setActive(s)}
+              >
                 {s.is_active ? "Deactivate" : "Activate"}
               </button>
 
               <button
+                type="button"
                 disabled={busy}
                 className="danger"
-                onClick={() => remove(s)}
+                onClick={() => {
+                  setDeleteId(s.id);
+                  setDeleteText("");
+                  setMessage("");
+                  setActionError(false);
+                }}
               >
                 Delete
               </button>
 
-              <button disabled={busy} onClick={() => editSponsor(s)}>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => editSponsor(s)}
+              >
                 Edit
               </button>
             </div>
 
+            {/* Delete confirmation */}
+            {deleteId === s.id && (
+              <div className="card">
+                <h3>Delete Sponsor</h3>
+
+                <p>
+                  Are you sure you want to delete
+                  {" "}{s.username} permanently?
+                </p>
+
+                <p>Type the username to confirm:</p>
+
+                <input
+                  value={deleteText}
+                  onChange={e => setDeleteText(e.target.value)}
+                  placeholder={`Type ${s.username}`}
+                />
+
+                <div className="admin-actions">
+                  <button
+                    type="button"
+                    className="danger"
+                    disabled={busy || deleteText !== s.username}
+                    onClick={() => remove(s)}
+                  >
+                    Confirm Delete
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeleteId(null);
+                      setDeleteText("");
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Edit sponsor */}
             {editingId === s.id && (
               <form onSubmit={e => saveEdit(e, s)}>
                 <h3>Edit Sponsor</h3>
@@ -394,6 +468,7 @@ function Sponsors() {
     </section>
   );
 }
+
 
 
 
