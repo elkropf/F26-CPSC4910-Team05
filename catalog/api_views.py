@@ -115,6 +115,7 @@ def products(request):
         ]
     })
 
+
 @require_GET
 def points(request):
     driver, error = _driver(request)
@@ -122,8 +123,23 @@ def points(request):
     if error is not None:
         return error
 
-    point_amt = Points.objects.get(driver=driver).points_balance
-    return JsonResponse({"points": point_amt})
+    organization_id = _driver_organization_id(driver)
+
+    if organization_id is None:
+        return JsonResponse({"points": 0})
+
+    balance = Points.objects.filter(
+        driver=driver,
+        organization_id=organization_id
+    ).first()
+
+    if balance is None:
+        return JsonResponse({"points": 0})
+
+    return JsonResponse({
+        "points": balance.points_balance
+    })
+
 
 def _cart_dict(driver):
     order = (
