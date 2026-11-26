@@ -44,6 +44,7 @@ function NewUserFields({ form, setForm }) {
 }
 
 
+
 function Dashboard() {
   const [summary, setSummary] = useState(null);
   const [error, setError] = useState("");
@@ -92,9 +93,17 @@ function Dashboard() {
           View as Sponsor / Driver
         </Link>
       </p>
+
+      <p>
+        <Link to="/admin/bulk-import">
+          Bulk Import Users
+        </Link>
+      </p>
     </section>
   );
 }
+
+
 
 
 
@@ -114,6 +123,9 @@ function Sponsors() {
 
   const [editingId, setEditingId] = useState(null);
   const [editData, setEditData] = useState({});
+
+  // Delete confirmation
+  const [deleteId, setDeleteId] = useState(null);
 
   useEffect(() => {
     setFees(Object.fromEntries(
@@ -177,7 +189,9 @@ function Sponsors() {
   function setActive(user) {
     const action = user.is_active ? "deactivate" : "activate";
 
-    if (!window.confirm(`Are you sure you want to ${action} ${user.username}?`)) {
+    if (!window.confirm(
+      `Are you sure you want to ${action} ${user.username}?`
+    )) {
       return;
     }
 
@@ -192,13 +206,9 @@ function Sponsors() {
     });
   }
 
+  // Delete sponsor
+  
   function remove(user) {
-    const typed = window.prompt(
-      `Delete sponsor ${user.username} permanently? Type the username to confirm:`
-    );
-
-    if (typed !== user.username) return;
-
     run(async () => {
       await apiRequest(
         `/api/admin/users/${user.id}/delete/`,
@@ -206,8 +216,10 @@ function Sponsors() {
       );
 
       setMessage(`Deleted ${user.username}.`);
+      setDeleteId(null);
     });
   }
+
 
   function editSponsor(sponsor) {
     setEditingId(sponsor.id);
@@ -259,7 +271,9 @@ function Sponsors() {
                   organization_name: ""
                 })}
               >
-                <option value="">Create a new organization instead</option>
+                <option value="">
+                  Create a new organization instead
+                </option>
 
                 {organizations.filter(o => o.is_active).map(o => (
                   <option key={o.id} value={o.id}>
@@ -285,7 +299,9 @@ function Sponsors() {
             )}
           </div>
 
-          <button disabled={busy}>Create Sponsor</button>
+          <button disabled={busy}>
+            Create Sponsor
+          </button>
         </form>
       </div>
 
@@ -321,27 +337,79 @@ function Sponsors() {
                 })}
               />
 
-              <button disabled={busy} onClick={() => saveFee(s)}>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => saveFee(s)}
+              >
                 Save Fee
               </button>
 
-              <button disabled={busy} onClick={() => setActive(s)}>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => setActive(s)}
+              >
                 {s.is_active ? "Deactivate" : "Activate"}
               </button>
 
               <button
+                type="button"
                 disabled={busy}
                 className="danger"
-                onClick={() => remove(s)}
+                onClick={() => {
+                  setDeleteId(s.id);
+                  setDeleteText("");
+                  setMessage("");
+                  setActionError(false);
+                }}
               >
                 Delete
               </button>
 
-              <button disabled={busy} onClick={() => editSponsor(s)}>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => editSponsor(s)}
+              >
                 Edit
               </button>
             </div>
 
+            
+            {/* Delete confirmation */}
+            {deleteId === s.id && (
+              <div className="card">
+                <h3>Delete Sponsor</h3>
+
+                <p>
+                  Are you sure you want to delete
+                  {" "}{s.username} permanently?
+                </p>
+
+                <div className="admin-actions">
+                  <button
+                    type="button"
+                    className="danger"
+                    disabled={busy}
+                    onClick={() => remove(s)}
+                  >
+                    Yes, Delete
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => setDeleteId(null)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+
+            {/* Edit sponsor */}
             {editingId === s.id && (
               <form onSubmit={e => saveEdit(e, s)}>
                 <h3>Edit Sponsor</h3>
@@ -394,6 +462,7 @@ function Sponsors() {
     </section>
   );
 }
+
 
 
 
@@ -959,6 +1028,165 @@ function Organizations() {
 }
 
 
+
+function BulkImport() {
+  const [file, setFile] = useState(null);
+  const [jobId, setJobId] = useState("");
+  const [result, setResult] = useState(null);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  function getCookie(name) {
+    const cookies = document.cookie.split(";");
+
+    for (const cookie of cookies) {
+      const [key, ...value] = cookie.trim().split("=");
+
+      if (key === name) {
+        return decodeURIComponent(value.join("="));
+      }
+    }
+
+    return "";
+  }
+
+  async function upload(e) {
+    e.preventDefault();
+
+    if (!file) return;
+
+    setBusy(true);
+    setError("");
+    setMessage("");
+    setResult(null);
+    setJobId("");
+
+    try {
+      if (!getCookie("csrftoken")) {
+        await fetch("/api/auth/csrf/", {
+          credentials: "same-origin"
+        });
+      }
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/api/users/bulk-import/", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "X-CSRFToken": getCookie("csrftoken")
+        },
+        body: formData
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Upload failed");
+      }
+
+      setJobId(data.job_id);
+      setResult(data);
+      setMessage("File uploaded successfully. Job #" + data.job_id);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function checkStatus() {
+    if (!jobId) return;
+
+    setBusy(true);
+    setError("");
+
+    try {
+      const response = await fetch(
+        `/api/users/bulk-import/${jobId}/`,
+        { credentials: "same-origin" }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Could not get status");
+      }
+
+      setResult(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="admin-panel">
+      <h1>Bulk Import Users</h1>
+
+      <div className="card">
+        <h2>Upload File</h2>
+
+        <p>
+          Upload a text file containing organizations,
+          drivers, or sponsors.
+        </p>
+
+        <form onSubmit={upload}>
+          <input
+            type="file"
+            accept=".txt"
+            onChange={e => setFile(e.target.files[0] || null)}
+          />
+
+          <button type="submit" disabled={busy || !file}>
+            Upload File
+          </button>
+        </form>
+
+        {message && <p>{message}</p>}
+        {error && <p className="error">{error}</p>}
+      </div>
+
+      {jobId && (
+        <div className="card">
+          <h2>Import Status</h2>
+
+          <p>Job ID: {jobId}</p>
+          <p>Status: {result?.status}</p>
+          <p>Processed: {result?.processed_rows ?? 0}</p>
+          <p>Successful: {result?.successful_rows ?? 0}</p>
+          <p>Failed: {result?.failed_rows ?? 0}</p>
+
+          {result?.error && (
+            <p className="error">{result.error}</p>
+          )}
+
+          <button
+            type="button"
+            disabled={busy}
+            onClick={checkStatus}
+          >
+            Refresh Status
+          </button>
+
+          {result?.results_available && (
+            <p>
+              <a href={`/api/users/bulk-import/${jobId}/results/`}>
+                Download Results
+              </a>
+            </p>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+
 function Reports() {
   const kinds = [
     ["Sponsor accounts and fees", "sponsors"],
@@ -981,6 +1209,7 @@ function Reports() {
   </section>;
 }
 
+
 export default function AdminPanel({ view = "dashboard" }) {
   if (view === "sponsors") return <Sponsors />;
   if (view === "drivers") return <Drivers />;
@@ -988,5 +1217,7 @@ export default function AdminPanel({ view = "dashboard" }) {
   if (view === "admins") return <Admins />;
   if (view === "reports") return <Reports />;
   if (view === "organizations") return <Organizations />;
+  if (view === "bulk-import") return <BulkImport />;
+
   return <Dashboard />;
 }

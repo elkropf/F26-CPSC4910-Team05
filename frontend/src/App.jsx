@@ -9,6 +9,7 @@ import AdminPanel from "./pages/AdminPanel";
 import AboutPage from "./pages/AboutPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import OrdersPage from "./pages/OrdersPage";
+import BulkImportPage from "./pages/BulkImportPage";
 
 import { useEffect, useState } from "react";
 import {
@@ -400,7 +401,13 @@ function AppContent() {
               path="/sponsor/ebay"
               element={<SponsorEbayPage />}
             />
+            <Route
+              path="/sponsor/profile"
+              element={<ProfilePage />}
+            />
           </Route>
+
+
 
           {/* Admin */}
 
@@ -437,6 +444,10 @@ function AppContent() {
             <Route
               path="/admin/reports"
               element={<AdminPanel view="reports" />}
+            />
+            <Route
+              path="/admin/bulk-import"
+              element={<AdminPanel view="bulk-import" />}
             />
           </Route>
           <Route
