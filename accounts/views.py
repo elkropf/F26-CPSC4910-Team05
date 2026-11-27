@@ -276,15 +276,6 @@ def api_current_user(request):
         "admin_user": _user_data(admin) if admin else None
     })
 
-    if not request.user.is_authenticated:
-        return JsonResponse({"authenticated": False}, status=401)
-
-    return JsonResponse(
-        {
-            "authenticated": True,
-            "user": _user_data(request.user),
-        }
-    )
 
 @csrf_protect
 @require_http_methods(["GET", "POST"])
