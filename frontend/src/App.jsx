@@ -405,6 +405,10 @@ function AppContent() {
               path="/sponsor/profile"
               element={<ProfilePage />}
             />
+            <Route
+              path="/sponsor/bulk-import"
+              element={<BulkImportPage />}
+            />
           </Route>
 
 
