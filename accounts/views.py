@@ -259,8 +259,23 @@ def api_logout(request):
     })
 
 #return currentuser signed in info
+
 @require_GET
 def api_current_user(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({
+            "authenticated": False
+        }, status=401)
+
+    admin = getattr(request, "view_as_admin", None)
+
+    return JsonResponse({
+        "authenticated": True,
+        "user": _user_data(request.user),
+        "impersonating": admin is not None,
+        "admin_user": _user_data(admin) if admin else None
+    })
+
     if not request.user.is_authenticated:
         return JsonResponse({"authenticated": False}, status=401)
 

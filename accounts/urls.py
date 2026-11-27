@@ -270,4 +270,18 @@ urlpatterns = [
     ),
 
 
+    path(
+        "api/admin/view-as/<int:user_id>/start/",
+        admin_api.start_view_as,
+        name="admin_start_view_as",
+    ),
+
+    path(
+        "api/admin/view-as/stop/",
+        admin_api.stop_view_as,
+        name="admin_stop_view_as",
+    ),
+
+
+
 ]
