@@ -1,4 +1,5 @@
 from django.core.validators import validate_email
+from django.core.management import call_command
 from django.views.decorators.http import require_http_methods
 import json
 
@@ -744,7 +745,7 @@ def api_change_points(request, driver_id):
         log = pointLog.objects.create(
             driver=driver,
             organization=sponsor.organization,
-            changed_by_user=request.user,
+            changed_by_user=getattr(request, "view_as_admin", None) or request.user,
             points_changed=points_changed,
             action=reason,
         )
@@ -1111,13 +1112,30 @@ def api_bulk_import(request):
             job.source_file.delete(save=False)
         raise
 
+    # Process the new job using the existing import command.
+    # This happens during the upload request (suitable for small files).
+    try:
+        call_command("process_bulk_import", job.id)
+    except Exception:
+        job.refresh_from_db()
+        return JsonResponse({
+            "job_id": job.id,
+            "status": job.status,
+            "error": "Processing could not finish. Check the Django server logs.",
+        }, status=500)
+
+    job.refresh_from_db()
     response = JsonResponse(
         {
             "job_id": job.id,
             "status": job.status,
-            "detail": "File uploaded and queued for processing.",
+            "processed_rows": job.processed_rows,
+            "successful_rows": job.successful_rows,
+            "failed_rows": job.failed_rows,
+            "results_available": bool(job.result_file.name),
+            "error": job.error_message,
+            "detail": "File uploaded and processing finished.",
         },
-        status=202,
     )
     response["Cache-Control"] = "no-store"
     return response

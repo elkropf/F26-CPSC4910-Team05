@@ -3,9 +3,22 @@ from django.core.exceptions import PermissionDenied
 from .models import Sponsor, UserType
 from datetime import datetime, date, time, timedelta
 from django.utils import timezone
+from contextvars import ContextVar
+
+# Tracks the real admin and selected user during an Admin View-As request.
+view_as_context = ContextVar('view_as_context', default=None)
 
 #events are recorded using consistent fields
 def record_event(*, action, actor=None, organization=None, record_type="", record_id=None, description=""):
+
+    view_as = view_as_context.get()
+    if view_as is not None:
+        admin, target = view_as
+        actor = admin
+        description = (
+            f"[Admin View-As: {admin.username} acting as {target.username}] "
+            f"{description}"
+        )
 
     signed_in = ( actor is not None and actor.is_authenticated)
 
