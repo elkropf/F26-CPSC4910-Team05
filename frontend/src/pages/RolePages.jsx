@@ -111,6 +111,7 @@ export function HomePage({ user }) {
       ["Sponsored Drivers", "/sponsor/drivers"],
       ["Manage Points", "/sponsor/points"],
       ["Sponsor Store", "/sponsor/stores"],
+      ["Bulk Import Users", "/sponsor/bulk-import"],
     ],
   };
 

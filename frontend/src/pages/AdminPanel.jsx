@@ -714,6 +714,7 @@ function Drivers() {
 }
 
 
+
 function Preview() {
   const { sponsors, drivers, error, loading } = useDirectory();
   const [role, setRole] = useState("sponsor");
@@ -721,60 +722,180 @@ function Preview() {
   const [data, setData] = useState(null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+
   const choices = role === "sponsor" ? sponsors : drivers;
+
   async function load(event) {
     event.preventDefault();
     setBusy(true);
     setData(null);
     setMessage("");
-    try { setData(await apiRequest(`/api/admin/preview/${role}/${userId}/`)); }
-    catch (err) { setMessage(err.message); }
-    finally { setBusy(false); }
+
+    try {
+      const result = await apiRequest(
+        `/api/admin/preview/${role}/${userId}/`
+      );
+      setData(result);
+    } catch (err) {
+      setMessage(err.message);
+    } finally {
+      setBusy(false);
+    }
   }
+
+  async function startViewAs() {
+    if (!userId) return;
+
+    setBusy(true);
+    setMessage("");
+
+    try {
+      await apiRequest(
+        `/api/admin/view-as/${userId}/start/`,
+        "POST"
+      );
+
+      // Reload React so it retrieves the selected user's role.
+      window.location.assign(`/app/${role}/home`);
+    } catch (err) {
+      setMessage(err.message);
+      setBusy(false);
+    }
+  }
+
   return (
     <section className="admin-panel">
       <h1>View as Sponsor / Driver</h1>
-      <p>This is a read-only preview of the account's data. You remain logged in as an admin, so no one else's actions or permissions are assumed.</p>
+
+      <p>
+        Select an account to preview its information or
+        open its interface in read-only View-As mode.
+      </p>
+
       <Note message={error || message} error />
+
       <div className="card">
         <form onSubmit={load}>
           <div className="admin-form-grid">
-            <label>View role
-              <select value={role} onChange={e => { setRole(e.target.value); setUserId(""); setData(null); }}>
-                <option value="sponsor">Sponsor</option><option value="driver">Driver</option>
+            <label>
+              View role
+              <select
+                value={role}
+                onChange={e => {
+                  setRole(e.target.value);
+                  setUserId("");
+                  setData(null);
+                }}
+              >
+                <option value="sponsor">Sponsor</option>
+                <option value="driver">Driver</option>
               </select>
             </label>
-            <label>Account
-              <select value={userId} onChange={e => setUserId(e.target.value)} required>
+
+            <label>
+              Account
+              <select
+                value={userId}
+                onChange={e => {
+                  setUserId(e.target.value);
+                  setData(null);
+                }}
+                required
+              >
                 <option value="">Choose account</option>
-                {choices.map(u => <option key={u.id} value={u.id}>{u.username}</option>)}
+                {choices.map(u => (
+                  <option key={u.id} value={u.id}>
+                    {u.username}
+                  </option>
+                ))}
               </select>
             </label>
           </div>
-          <button disabled={busy || loading || !userId}>View Account</button>
+
+          <button
+            type="submit"
+            disabled={busy || loading || !userId}
+          >
+            View Account
+          </button>
+
+          <button
+            type="button"
+            onClick={startViewAs}
+            disabled={busy || loading || !userId}
+            style={{ marginLeft: 10 }}
+          >
+            Start View-As (Read-Only)
+          </button>
         </form>
       </div>
-      {data && <div className="card admin-preview">
-        <h2>{data.account.username} ({data.role})</h2>
-        <p>Email: {data.account.email || "None"}</p>
-        {data.role === "sponsor" ? <>
-          <p>Organization: {data.account.organization || "None"}</p>
-          <p>Fee: {data.account.fee_percentage}%</p>
-          <p>Pending applications: {data.pending_applications}</p>
-          <h3>Drivers</h3><p>{data.drivers.join(", ") || "None"}</p>
-          <h3>Available products</h3>
-          <ul>{data.products.map((p, i) => <li key={i}>{p.name} — {p.points} points</li>)}</ul>
-        </> : <>
-          <p>Organizations: {data.account.organizations.map(o => o.name).join(", ") || "None"}</p>
-          <h3>Point balances</h3>
-          <ul>{data.balances.map((b, i) => <li key={i}>{b.organization}: {b.points} points</li>)}</ul>
-          <h3>Recent orders</h3>
-          <ul>{data.orders.map(o => <li key={o.id}>Order {o.id}: {o.status} ({o.points} points)</li>)}</ul>
-        </>}
-      </div>}
+
+      {data && (
+        <div className="card admin-preview">
+          <h2>
+            {data.account.username} ({data.role})
+          </h2>
+
+          <p>Email: {data.account.email || "None"}</p>
+
+          {data.role === "sponsor" ? (
+            <>
+              <p>
+                Organization: {data.account.organization || "None"}
+              </p>
+
+              <p>Fee: {data.account.fee_percentage}%</p>
+
+              <p>
+                Pending applications: {data.pending_applications}
+              </p>
+
+              <h3>Drivers</h3>
+              <p>{data.drivers.join(", ") || "None"}</p>
+
+              <h3>Available products</h3>
+              <ul>
+                {data.products.map((p, i) => (
+                  <li key={i}>
+                    {p.name} — {p.points} points
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <>
+              <p>
+                Organizations:{" "}
+                {data.account.organizations
+                  .map(o => o.name)
+                  .join(", ") || "None"}
+              </p>
+
+              <h3>Point balances</h3>
+              <ul>
+                {data.balances.map((b, i) => (
+                  <li key={i}>
+                    {b.organization}: {b.points} points
+                  </li>
+                ))}
+              </ul>
+
+              <h3>Recent orders</h3>
+              <ul>
+                {data.orders.map(o => (
+                  <li key={o.id}>
+                    Order {o.id}: {o.status} ({o.points} points)
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
+      )}
     </section>
   );
 }
+
 
 
 function Admins() {

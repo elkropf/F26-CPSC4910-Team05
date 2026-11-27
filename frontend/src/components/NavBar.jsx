@@ -24,7 +24,14 @@ const menus = {
   ],
 };
 
-export default function Navbar({ role, username, onLogout }) {
+export default function Navbar({
+  role,
+  username,
+  onLogout,
+  impersonating = false,
+  onReturnToAdmin,
+  returning = false
+}) {
   const links = role
     ? [
         ...(menus[role] || []),
@@ -59,7 +66,20 @@ export default function Navbar({ role, username, onLogout }) {
       {role && (
         <div className="account">
           <span>{username} ({role})</span>
-          <button onClick={onLogout}>Logout</button>
+
+          {impersonating ? (
+            <button
+              type="button"
+              onClick={onReturnToAdmin}
+              disabled={returning}
+            >
+              {returning ? "Returning..." : "Return to Admin"}
+            </button>
+          ) : (
+            <button type="button" onClick={onLogout}>
+              Logout
+            </button>
+          )}
         </div>
       )}
     </header>

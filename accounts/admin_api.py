@@ -476,6 +476,9 @@ def delete_account(request, user_id):
 @require_GET
 @admin_only
 def report_csv(request, kind):
+
+
+    
     response = HttpResponse(content_type="text/csv")
     response["Content-Disposition"] = f'attachment; filename="admin-{kind}.csv"'
     writer = csv.writer(response)
@@ -508,3 +511,80 @@ def report_csv(request, kind):
     record_event(action="admin.report_downloaded", actor=request.user,
                  record_type="report", description=f"Downloaded {kind} report.")
     return response
+
+
+@require_POST
+@admin_only
+def start_view_as(request, user_id):
+    if request.session.get("admin_view_as_target_id"):
+        return error("Already viewing another account.", 400)
+
+    target = User.objects.filter(
+        id=user_id,
+        is_active=True,
+        user_type__in=[UserType.DRIVER, UserType.SPONSOR]
+    ).first()
+
+    if target is None:
+        return error("Active Driver or Sponsor not found.", 404)
+
+    if target.user_type == UserType.DRIVER:
+        if not Driver.objects.filter(user=target).exists():
+            return error("Driver profile not found.", 404)
+
+    if target.user_type == UserType.SPONSOR:
+        if not Sponsor.objects.filter(user=target).exists():
+            return error("Sponsor profile not found.", 404)
+
+    record_event(
+        action="admin.view_as_started",
+        actor=request.user,
+        record_type="user",
+        record_id=target.id,
+        description=(
+            f"Admin {request.user.username} started "
+            f"View-As for {target.username}."
+        )
+    )
+
+    request.session["admin_view_as_target_id"] = target.id
+
+    return JsonResponse({
+        "message": f"View-As started for {target.username}.",
+        "user": user_info(target),
+        "impersonating": True
+    })
+
+
+@require_POST
+def stop_view_as(request):
+    admin = getattr(request, "view_as_admin", None)
+    target_id = request.session.get("admin_view_as_target_id")
+
+    if (
+        admin is None
+        or not admin.is_authenticated
+        or not admin.is_active
+        or admin.user_type != UserType.ADMIN
+        or not target_id
+    ):
+        return error("No active Admin View-As session.", 403)
+
+    record_event(
+        action="admin.view_as_stopped",
+        actor=admin,
+        record_type="user",
+        record_id=target_id,
+        description=(
+            f"Admin {admin.username} ended "
+            f"View-As for user {target_id}."
+        )
+    )
+
+    request.session.pop("admin_view_as_target_id", None)
+
+    return JsonResponse({
+        "message": "Returned to Admin account.",
+        "user": user_info(admin),
+        "impersonating": False
+    })
