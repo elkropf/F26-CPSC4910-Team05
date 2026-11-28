@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { apiRequest } from "../api";
 
 const REPORTS = [
   { name: "Sponsor Accounts", kind: "sponsors" },
@@ -42,6 +43,148 @@ function parseCSV(text) {
     Object.fromEntries(headers.map((header, index) => [header, values[index] || ""]))
   );
   return { headers, rows };
+}
+
+
+// Required sales, invoice, and audit reports. Existing CSV reports remain unchanged.
+const REQUIRED_REPORTS = [
+  { name: "Sales by Sponsor", kind: "admin_sales_sponsor" },
+  { name: "Sales by Driver", kind: "admin_sales_driver" },
+  { name: "Sponsor Invoices", kind: "admin_invoices" },
+  { name: "Admin Audit Log", kind: "admin_audit" },
+];
+
+function RequiredAdminReports() {
+  const [kind, setKind] = useState("admin_sales_sponsor");
+  const [organizations, setOrganizations] = useState([]);
+  const [drivers, setDrivers] = useState([]);
+  const [organizationId, setOrganizationId] = useState("");
+  const [driverId, setDriverId] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [view, setView] = useState("detail");
+  const [action, setAction] = useState("");
+  const [report, setReport] = useState(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    apiRequest("/api/reports/options/")
+      .then((data) => {
+        setOrganizations(data.organizations || []);
+        setDrivers(data.drivers || []);
+      })
+      .catch((err) => setError(err.message));
+  }, []);
+
+  const shownDrivers = organizationId
+    ? drivers.filter((driver) => driver.organization_ids?.includes(Number(organizationId)))
+    : drivers;
+
+  function reportUrl(csv = false) {
+    const params = new URLSearchParams();
+    if (organizationId) params.set("organization_id", organizationId);
+    if (kind === "admin_sales_driver" && driverId) params.set("driver_id", driverId);
+    if (startDate) params.set("start_date", startDate);
+    if (endDate) params.set("end_date", endDate);
+    if (kind === "admin_audit" && action.trim()) params.set("action", action.trim());
+    params.set("view", view);
+    if (csv) params.set("format", "csv");
+    return `/api/reports/${kind}/?${params.toString()}`;
+  }
+
+  async function generate(event) {
+    event.preventDefault();
+    setError("");
+    setReport(null);
+    setLoading(true);
+    try {
+      setReport(await apiRequest(reportUrl()));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="card" style={{ marginTop: 20 }}>
+      <h2>Sales, Invoices, and Audit Reports</h2>
+      <form onSubmit={generate}>
+        <div className="admin-form-grid">
+          <label>Report
+            <select value={kind} onChange={(e) => { setKind(e.target.value); setReport(null); }}>
+              {REQUIRED_REPORTS.map((option) => (
+                <option value={option.kind} key={option.kind}>{option.name}</option>
+              ))}
+            </select>
+          </label>
+          <label>Sponsor
+            <select value={organizationId} onChange={(e) => { setOrganizationId(e.target.value); setDriverId(""); }}>
+              <option value="">All sponsors</option>
+              {organizations.map((org) => <option key={org.id} value={org.id}>{org.name}</option>)}
+            </select>
+          </label>
+          {kind === "admin_sales_driver" && (
+            <label>Driver
+              <select value={driverId} onChange={(e) => setDriverId(e.target.value)}>
+                <option value="">All drivers</option>
+                {shownDrivers.map((driver) => (
+                  <option key={driver.id} value={driver.id}>{driver.name} ({driver.username})</option>
+                ))}
+              </select>
+            </label>
+          )}
+          <label>Start date
+            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          </label>
+          <label>End date
+            <input type="date" min={startDate || undefined} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+          </label>
+          {kind.startsWith("admin_sales_") && (
+            <label>View
+              <select value={view} onChange={(e) => setView(e.target.value)}>
+                <option value="detail">Detailed</option>
+                <option value="summary">Summary</option>
+              </select>
+            </label>
+          )}
+          {kind === "admin_audit" && (
+            <label>Audit category
+              <input value={action} onChange={(e) => setAction(e.target.value)} placeholder="e.g. points" />
+            </label>
+          )}
+        </div>
+        <button type="submit" disabled={loading}>{loading ? "Loading..." : "Generate Report"}</button>
+      </form>
+      {error && <p role="alert" className="error">{error}</p>}
+      {report && (
+        <div style={{ marginTop: 16 }}>
+          <h3>{report.title}</h3>
+          <p><a href={reportUrl(true)} download>Download filtered CSV</a></p>
+          {Object.entries(report.totals || {}).map(([name, value]) => (
+            <p key={name}><strong>{name}:</strong> {value}</p>
+          ))}
+          {report.rows.length === 0 ? (
+            <p>No matching records.</p>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table className="drivers-table">
+                <thead><tr>{report.columns.map((column) => <th key={column}>{column}</th>)}</tr></thead>
+                <tbody>
+                  {report.rows.map((row, index) => (
+                    <tr key={index}>
+                      {report.columns.map((column) => <td key={column}>{String(row[column] ?? "")}</td>)}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function AdminReportsPage() {
@@ -195,6 +338,7 @@ export default function AdminReportsPage() {
           </div>
         </>
       )}
+      <RequiredAdminReports />
     </section>
   );
 }
