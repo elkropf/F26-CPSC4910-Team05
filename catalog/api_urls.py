@@ -1,6 +1,7 @@
 from django.urls import path
 from . import api_views
 from . import ebay_api
+from . import order_cancel_api
 
 urlpatterns = [
     path("products/", api_views.products, name="api_catalog_products"),
@@ -12,4 +13,5 @@ urlpatterns = [
     path("ebay/search/", ebay_api.ebay_search),
     path("ebay/add/", ebay_api.ebay_add),
     path("orders/", api_views.order_history, name="api_catalog_orders"),
+    path("orders/<int:order_id>/cancel/", order_cancel_api.cancel_order, name="api_cancel_order"),
 ]
