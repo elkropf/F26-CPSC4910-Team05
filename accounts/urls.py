@@ -4,11 +4,24 @@ from django.contrib.auth.views import PasswordResetConfirmView
 
 from . import views
 from . import admin_api
+from . import final_reports
 
 app_name = "accounts"
 
 urlpatterns = [
     path("", views.main_page, name="main_page"),
+
+    # Required sponsor/admin sales reports and invoices
+    path(
+        "api/reports/options/",
+        final_reports.report_options,
+        name="final_report_options",
+    ),
+    path(
+        "api/reports/<str:kind>/",
+        final_reports.final_report,
+        name="final_report",
+    ),
 
     # JSON authentication API for React
     path("api/auth/csrf/", views.api_csrf, name="api_csrf"),
